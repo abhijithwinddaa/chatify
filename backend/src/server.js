@@ -1,18 +1,19 @@
 // backend/src/server.js
 import express from 'express';
-import dotenv from 'dotenv';
+
 import path from 'path';
 
 import authRoute from './routes/auth.route.js';
 import messageRoutes from './routes/message.route.js';
 import {connectDB} from './lib/db.js';
+import { ENV } from './lib/env.js';
 
-dotenv.config();
+
 
 const app = express();
 const __dirname = path.resolve();
 
-const PORT = process.env.PORT || 3000;
+const PORT = ENV.PORT || 3000;
 
 app.use(express.json()) // req.body
 
@@ -21,7 +22,7 @@ app.use("/api/auth", authRoute);
 app.use("/api/messages", messageRoutes);
 
 // serve frontend in production
-if (process.env.NODE_ENV === "production") {
+if (ENV.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
   app.get('*', (req, res) => {
@@ -30,8 +31,8 @@ if (process.env.NODE_ENV === "production") {
 }
 
 // debug print -- helpful during deploy
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('PORT env:', process.env.PORT);
+console.log('NODE_ENV:', ENV.NODE_ENV);
+console.log('PORT env:', ENV.PORT);
 
 // IMPORTANT: listen on the runtime PORT and bind to all interfaces
 app.listen(PORT, '0.0.0.0', () => {
