@@ -1,5 +1,3 @@
-import React from 'react'
-
 import BorderAnimatedContainer from '../components/BorderAnimatedContainer';
 import { useChatStore } from '../store/useChatStore';
 import ActiveTabSwitch from '../components/ActiveTabSwitch';
