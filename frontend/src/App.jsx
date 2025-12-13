@@ -2,6 +2,8 @@ import { Navigate, Routes, Route } from "react-router"
 import ChatPage from "./pages/ChatPage"
 import LoginPage from "./pages/LoginPage"
 import SignUpPage from "./pages/SignUpPage"
+import LandingPage from "./pages/LandingPage"
+import AccountPage from "./pages/AccountPage"
 import { useAuthStore } from "./store/useAuthStore"
 import { useEffect } from "react"
 import PageLoader from "./components/PageLoader"
@@ -30,9 +32,11 @@ function App() {
       <div className="absolute top-0 -left-4 size-96 bg-pink-500 opacity-20 blur-[100px]" />
       <div className="absolute bottom-0 -right-4 size-96 bg-cyan-500 opacity-20 blur-[100px]" />
       <Routes>
-        <Route path="/" element={authUser ? <ChatPage /> : <Navigate to="/login" />} />
-        <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to="/" />} />
-        <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to="/" />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/chat" element={authUser ? <ChatPage /> : <Navigate to="/login" />} />
+        <Route path="/account" element={authUser ? <AccountPage /> : <Navigate to="/login" />} />
+        <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to="/chat" />} />
+        <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to="/chat" />} />
       </Routes>
       <Toaster />
     </div>

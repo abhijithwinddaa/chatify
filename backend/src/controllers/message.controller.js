@@ -109,3 +109,83 @@ export const getChatPartners = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+// Mark messages as delivered when receiver comes online
+export const markAsDelivered = async (req, res) => {
+    try {
+        const receiverId = req.user._id;
+        const { senderId } = req.params;
+
+        // Find all undelivered messages from sender to receiver
+        const result = await Message.updateMany(
+            {
+                senderId,
+                receiverId,
+                status: "sent"
+            },
+            {
+                $set: {
+                    status: "delivered",
+                    deliveredAt: new Date()
+                }
+            }
+        );
+
+        // Notify the sender that messages were delivered via Socket.IO
+        const senderSocketId = getReceiverSocketId(senderId);
+        if (senderSocketId) {
+            io.to(senderSocketId).emit("messagesDelivered", {
+                receiverId: receiverId.toString(),
+                timestamp: new Date()
+            });
+        }
+
+        res.status(200).json({
+            message: "Messages marked as delivered",
+            modifiedCount: result.modifiedCount
+        });
+    } catch (error) {
+        console.log("Error marking messages as delivered:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Mark messages as read when receiver opens the chat
+export const markAsRead = async (req, res) => {
+    try {
+        const receiverId = req.user._id;
+        const { senderId } = req.params;
+
+        // Find all unread messages from sender to receiver
+        const result = await Message.updateMany(
+            {
+                senderId,
+                receiverId,
+                status: { $in: ["sent", "delivered"] }
+            },
+            {
+                $set: {
+                    status: "read",
+                    readAt: new Date()
+                }
+            }
+        );
+
+        // Notify the sender that messages were read via Socket.IO
+        const senderSocketId = getReceiverSocketId(senderId);
+        if (senderSocketId) {
+            io.to(senderSocketId).emit("messagesRead", {
+                receiverId: receiverId.toString(),
+                timestamp: new Date()
+            });
+        }
+
+        res.status(200).json({
+            message: "Messages marked as read",
+            modifiedCount: result.modifiedCount
+        });
+    } catch (error) {
+        console.log("Error marking messages as read:", error);
+        res.status(500).json({ message: error.message });
+    }
+};

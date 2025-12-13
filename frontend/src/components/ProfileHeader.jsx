@@ -1,96 +1,75 @@
-import React from 'react'
-import { useState, useRef } from "react";
-import { LogOutIcon, VolumeOffIcon, Volume2Icon, Loader2 } from "lucide-react";
+import React, { useState, useRef, useEffect } from 'react';
+import { SettingsIcon, VolumeOffIcon, Volume2Icon, LogOutIcon, UserIcon, MoreVerticalIcon } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
+import { useNavigate } from "react-router";
 
 const mouseClickSound = new Audio("/sounds/mouse-click.mp3");
 
 function ProfileHeader() {
-    const { logout, authUser, updateProfile, isUpdatingProfile } = useAuthStore();
+    const { logout, authUser } = useAuthStore();
     const { isSoundEnabled, toggleSound } = useChatStore();
-    const [selectedImg, setSelectedImg] = useState(null);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuRef = useRef(null);
+    const navigate = useNavigate();
 
-    const fileInputRef = useRef(null);
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setIsMenuOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
-    const handleImageUpload = (e) => {
-        const file = e.target.files[0];
-        if (!file) return
+    const handleAccountClick = () => {
+        setIsMenuOpen(false);
+        navigate("/account");
+    };
 
-        const reader = new FileReader()
-        reader.readAsDataURL(file)
-        reader.onloadend = async () => {
-            const base64Image = reader.result;
-            setSelectedImg(base64Image)
-            await updateProfile({ profilePic: base64Image })
-
-        }
-    }
-
+    const handleLogout = () => {
+        setIsMenuOpen(false);
+        logout();
+    };
 
     return (
-        <div className='p-6 border-b border-slate-700/50'>
+        <div className='p-4 border-b border-slate-700/50'>
             <div className='flex items-center justify-between'>
+                {/* LEFT: USER INFO */}
                 <div className='flex items-center gap-3'>
                     {/* AVATAR */}
                     <div className="avatar online">
-                        <button
-                            className="size-14 rounded-full overflow-hidden relative group"
-                            onClick={() => fileInputRef.current.click()}
-                            disabled={isUpdatingProfile}
-                        >
+                        <div className="size-12 rounded-full overflow-hidden">
                             <img
-                                src={selectedImg || authUser.profilePic || "/avatar.png"}
+                                src={authUser.profilePic || "/avatar.png"}
                                 alt="User image"
                                 className="size-full object-cover"
                             />
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                {isUpdatingProfile ? (
-                                    <Loader2 className="size-5 animate-spin text-white" />
-                                ) : (
-                                    <span className="text-white text-xs">Change</span>
-                                )}
-                            </div>
-                        </button>
-
-                        <input
-                            type="file"
-                            accept="image/*"
-                            ref={fileInputRef}
-                            onChange={handleImageUpload}
-                            className="hidden"
-                        />
+                        </div>
                     </div>
 
                     {/* USERNAME & ONLINE TEXT */}
                     <div>
-                        <h3 className="text-slate-200 font-medium text-base max-w-[180px] truncate">
+                        <h3 className="text-slate-200 font-medium text-base max-w-[120px] truncate">
                             {authUser.fullName}
                         </h3>
-                        <p className="text-slate-400 text-xs">Online</p>
+                        <p className="text-green-500 text-xs">Online</p>
                     </div>
-
                 </div>
 
-                {/* BUTTONS */}
-                <div className="flex gap-4 items-center">
-                    {/* LOGOUT BTN */}
-                    <button
-                        className="text-slate-400 hover:text-slate-200 transition-colors"
-                        onClick={logout}
-                    >
-                        <LogOutIcon className="size-5" />
-                    </button>
-
+                {/* RIGHT: ACTION BUTTONS */}
+                <div className="flex gap-2 items-center">
                     {/* SOUND TOGGLE BTN */}
                     <button
-                        className="text-slate-400 hover:text-slate-200 transition-colors"
+                        className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 rounded-lg transition-all"
                         onClick={() => {
-                            // play click sound before toggling
-                            mouseClickSound.currentTime = 0; // reset to start
+                            mouseClickSound.currentTime = 0;
                             mouseClickSound.play().catch((error) => console.log("Audio play failed:", error));
                             toggleSound();
                         }}
+                        title={isSoundEnabled ? "Mute sounds" : "Unmute sounds"}
                     >
                         {isSoundEnabled ? (
                             <Volume2Icon className="size-5" />
@@ -98,9 +77,56 @@ function ProfileHeader() {
                             <VolumeOffIcon className="size-5" />
                         )}
                     </button>
+
+                    {/* SETTINGS DROPDOWN */}
+                    <div className="relative" ref={menuRef}>
+                        <button
+                            className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 rounded-lg transition-all"
+                            onClick={() => setIsMenuOpen(!isMenuOpen)}
+                            title="Menu"
+                        >
+                            <MoreVerticalIcon className="size-5" />
+                        </button>
+
+                        {/* DROPDOWN MENU */}
+                        {isMenuOpen && (
+                            <div className="absolute right-0 top-full mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                                {/* Account Option */}
+                                <button
+                                    onClick={handleAccountClick}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-slate-200 hover:bg-slate-700 transition-colors text-left"
+                                >
+                                    <UserIcon className="size-5 text-slate-400" />
+                                    <span>Account</span>
+                                </button>
+
+                                {/* Settings Option */}
+                                <button
+                                    onClick={() => {
+                                        setIsMenuOpen(false);
+                                        navigate("/account");
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-slate-200 hover:bg-slate-700 transition-colors text-left"
+                                >
+                                    <SettingsIcon className="size-5 text-slate-400" />
+                                    <span>Settings</span>
+                                </button>
+
+                                {/* Divider */}
+                                <div className="border-t border-slate-700"></div>
+
+                                {/* Logout Option */}
+                                <button
+                                    onClick={handleLogout}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-slate-700 transition-colors text-left"
+                                >
+                                    <LogOutIcon className="size-5" />
+                                    <span>Log out</span>
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
-
-
             </div>
         </div>
     )

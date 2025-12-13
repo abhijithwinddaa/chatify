@@ -5,6 +5,8 @@ import ChatHeader from "./ChatHeader";
 import NoChatHistoryPlaceholder from "./NoChatHistoryPlaceholder";
 import MessageInput from "./MessageInput";
 import MessagesLoadingSkeleton from "../components/MessagesLoadingSkeleton";
+import MessageStatus from "./MessageStatus";
+import TypingIndicator from "./TypingIndicator";
 
 function ChatContainer() {
     const {
@@ -14,25 +16,33 @@ function ChatContainer() {
         isMessagesLoading,
         subscribeToMessages,
         unsubscribeFromMessages,
+        markAsRead,
+        typingUsers,
     } = useChatStore();
     const { authUser } = useAuthStore();
     const messageEndRef = useRef(null);
+
+    // Check if selected user is currently typing
+    const isSelectedUserTyping = selectedUser && typingUsers[selectedUser._id];
 
     useEffect(() => {
         getMessagesByUserId(selectedUser._id);
         subscribeToMessages();
 
+        // Mark messages from this user as read when opening the chat
+        markAsRead(selectedUser._id);
+
         // clean up
         return () => {
             unsubscribeFromMessages();
         };
-    }, [selectedUser, getMessagesByUserId, subscribeToMessages, unsubscribeFromMessages]);
+    }, [selectedUser, getMessagesByUserId, subscribeToMessages, unsubscribeFromMessages, markAsRead]);
 
     useEffect(() => {
         if (messageEndRef.current) {
             messageEndRef.current.scrollIntoView({ behavior: "smooth" });
         }
-    }, [messages]);
+    }, [messages, isSelectedUserTyping]);
 
     return (
         <>
@@ -55,15 +65,21 @@ function ChatContainer() {
                                         <img src={msg.image} alt="Shared" className="rounded-lg h-48 object-cover" />
                                     )}
                                     {msg.text && <p className="mt-2">{msg.text}</p>}
-                                    <p className="text-xs mt-1 opacity-75 flex items-center gap-1">
+                                    <p className="text-xs mt-1 opacity-75 flex items-center gap-1 justify-end">
                                         {new Date(msg.createdAt).toLocaleTimeString(undefined, {
                                             hour: "2-digit",
                                             minute: "2-digit",
                                         })}
+                                        {/* Show status ticks only for messages sent by current user */}
+                                        {msg.senderId === authUser._id && (
+                                            <MessageStatus status={msg.status || "sent"} />
+                                        )}
                                     </p>
                                 </div>
                             </div>
                         ))}
+                        {/* Show typing indicator when selected user is typing */}
+                        {isSelectedUserTyping && <TypingIndicator />}
                         {/* 👇 scroll target */}
                         <div ref={messageEndRef} />
                     </div>
@@ -80,3 +96,5 @@ function ChatContainer() {
 }
 
 export default ChatContainer;
+
+

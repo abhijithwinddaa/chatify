@@ -4,7 +4,7 @@ import UsersLoadingSkeleton from "./UsersLoadingSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 
 function ContactList() {
-    const { getAllContacts, allContacts, setSelectedUser, isUsersLoading } = useChatStore();
+    const { getAllContacts, allContacts, setSelectedUser, selectedUser, isUsersLoading } = useChatStore();
     const { onlineUsers } = useAuthStore();
 
     useEffect(() => {
@@ -14,25 +14,32 @@ function ContactList() {
     if (isUsersLoading) return <UsersLoadingSkeleton />;
 
     return (
-        <>
+        <div className="px-2 py-2">
             {allContacts.map((contact) => (
                 <div
                     key={contact._id}
-                    className="bg-cyan-500/10 p-4 rounded-lg cursor-pointer hover:bg-cyan-500/20 transition-colors"
+                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors
+                        ${selectedUser?._id === contact._id
+                            ? "bg-slate-700/60"
+                            : "hover:bg-slate-700/40"
+                        }`}
                     onClick={() => setSelectedUser(contact)}
                 >
-                    <div className="flex items-center gap-3">
-                        {/* TODO: FIX THIS ONLINE STATUS AND MAKE IT WORK WITH SOCKET IO */}
-                        <div className={`avatar ${onlineUsers.includes(contact._id) ? "online" : "offline"}`}>
-                            <div className="size-12 rounded-full">
-                                <img src={contact.profilePic || "/avatar.png"} />
-                            </div>
+                    <div className={`avatar ${onlineUsers.includes(contact._id) ? "online" : "offline"}`}>
+                        <div className="size-12 rounded-full">
+                            <img src={contact.profilePic || "/avatar.png"} alt={contact.fullName} />
                         </div>
-                        <h4 className="text-slate-200 font-medium">{contact.fullName}</h4>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <h4 className="text-slate-200 font-medium truncate">{contact.fullName}</h4>
+                        <p className="text-slate-500 text-xs">
+                            {onlineUsers.includes(contact._id) ? "Online" : "Offline"}
+                        </p>
                     </div>
                 </div>
             ))}
-        </>
+        </div>
     );
 }
 export default ContactList;
+

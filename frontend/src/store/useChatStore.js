@@ -15,6 +15,7 @@ export const useChatStore = create((set, get) => ({
     isUsersLoading: false,
     isMessagesLoading: false,
     isSoundEnabled: JSON.parse(localStorage.getItem("isSoundEnabled")) === true,
+    typingUsers: {}, // { oderId: true } - tracks which users are currently typing
 
     toggleSound: () => {
         localStorage.setItem("isSoundEnabled", !get().isSoundEnabled);
@@ -23,6 +24,33 @@ export const useChatStore = create((set, get) => ({
 
     setActiveTab: (tab) => set({ activeTab: tab }),
     setSelectedUser: (selectedUser) => set({ selectedUser }),
+
+    // Typing indicator actions
+    setUserTyping: (userId) => {
+        set({ typingUsers: { ...get().typingUsers, [userId]: true } });
+    },
+
+    setUserStopTyping: (userId) => {
+        const newTypingUsers = { ...get().typingUsers };
+        delete newTypingUsers[userId];
+        set({ typingUsers: newTypingUsers });
+    },
+
+    // Emit typing event to receiver
+    emitTyping: (receiverId) => {
+        const socket = useAuthStore.getState().socket;
+        if (socket) {
+            socket.emit("typing", { receiverId });
+        }
+    },
+
+    // Emit stop typing event to receiver
+    emitStopTyping: (receiverId) => {
+        const socket = useAuthStore.getState().socket;
+        if (socket) {
+            socket.emit("stopTyping", { receiverId });
+        }
+    },
 
     getAllContacts: async () => {
         set({ isUsersLoading: true });
@@ -72,9 +100,10 @@ export const useChatStore = create((set, get) => ({
             text: messageData.text,
             image: messageData.image,
             createdAt: new Date().toISOString(),
-            isOptimistic: true, // flag to identify optimistic messages (optional)
+            status: "sent",
+            isOptimistic: true,
         };
-        // immidetaly update the ui by adding the message
+        // immediately update the UI by adding the message
         set({ messages: [...messages, optimisticMessage] });
 
         try {
@@ -84,6 +113,31 @@ export const useChatStore = create((set, get) => ({
             set({ messages: messages })
             toast.error(error.response?.data?.message || "Something went wrong");
         }
+    },
+
+    // Mark messages from sender as read when opening chat
+    markAsRead: async (senderId) => {
+        try {
+            await axiosInstance.put(`/messages/read/${senderId}`);
+        } catch (error) {
+            console.log("Error marking messages as read:", error);
+        }
+    },
+
+    // Update message statuses in the current messages array
+    updateMessageStatuses: (senderId, newStatus) => {
+        const { messages } = get();
+        const { authUser } = useAuthStore.getState();
+
+        const updatedMessages = messages.map(msg => {
+            // Only update messages sent BY the current user TO the receiver
+            if (msg.senderId === authUser._id && msg.receiverId === senderId) {
+                return { ...msg, status: newStatus };
+            }
+            return msg;
+        });
+
+        set({ messages: updatedMessages });
     },
 
     subscribeToMessages: () => {
@@ -105,11 +159,36 @@ export const useChatStore = create((set, get) => ({
                 notificationSound.play().catch((e) => console.log("Audio play failed:", e));
             }
         });
+
+        // Listen for message delivered status updates
+        socket.on("messagesDelivered", ({ receiverId }) => {
+            get().updateMessageStatuses(receiverId, "delivered");
+        });
+
+        // Listen for message read status updates
+        socket.on("messagesRead", ({ receiverId }) => {
+            get().updateMessageStatuses(receiverId, "read");
+        });
+
+        // Listen for typing indicator events
+        socket.on("userTyping", ({ userId }) => {
+            get().setUserTyping(userId);
+        });
+
+        socket.on("userStopTyping", ({ userId }) => {
+            get().setUserStopTyping(userId);
+        });
     },
 
     unsubscribeFromMessages: () => {
         const socket = useAuthStore.getState().socket;
         socket.off("newMessage");
+        socket.off("messagesDelivered");
+        socket.off("messagesRead");
+        socket.off("userTyping");
+        socket.off("userStopTyping");
     },
 
 }));
+
+
