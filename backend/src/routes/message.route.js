@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllContacts, getMessagesByUserId, sendMessage, getChatPartners } from '../controllers/message.controller.js';
+import { getAllContacts, getMessagesByUserId, sendMessage, getChatPartners, markAsDelivered, markAsRead } from '../controllers/message.controller.js';
 import { protectRoute } from '../middleware/auth.middleware.js';
 import { arcjetProjection } from '../middleware/arcjet.middleware.js';
 
@@ -14,5 +14,9 @@ router.get("/contacts", getAllContacts);
 router.get("/chats", getChatPartners);
 router.get("/:id", getMessagesByUserId)
 router.post("/send/:id", sendMessage);
+
+// Message status routes
+router.put("/delivered/:senderId", markAsDelivered);  // Mark messages from sender as delivered
+router.put("/read/:senderId", markAsRead);            // Mark messages from sender as read
 
 export default router;

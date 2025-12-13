@@ -4,6 +4,9 @@ import { useChatStore } from "../store/useChatStore";
 import toast from "react-hot-toast";
 import { ImageIcon, SendIcon, XIcon } from "lucide-react";
 
+// Typing timeout reference (outside component to persist across renders)
+let typingTimeoutRef = null;
+
 function MessageInput() {
     const { playRandomKeyStrokeSound } = useKeyboardSound();
     const [text, setText] = useState("");
@@ -11,12 +14,35 @@ function MessageInput() {
 
     const fileInputRef = useRef(null);
 
-    const { sendMessage, isSoundEnabled } = useChatStore();
+    const { sendMessage, isSoundEnabled, selectedUser, emitTyping, emitStopTyping } = useChatStore();
+
+    const handleTyping = () => {
+        if (!selectedUser) return;
+
+        // Emit typing event
+        emitTyping(selectedUser._id);
+
+        // Clear existing timeout
+        if (typingTimeoutRef) {
+            clearTimeout(typingTimeoutRef);
+        }
+
+        // Set new timeout to emit stopTyping after 2 seconds of no typing
+        typingTimeoutRef = setTimeout(() => {
+            emitStopTyping(selectedUser._id);
+        }, 2000);
+    };
 
     const handleSendMessage = (e) => {
         e.preventDefault();
         if (!text.trim() && !imagePreview) return;
         if (isSoundEnabled) playRandomKeyStrokeSound();
+
+        // Stop typing indicator when sending
+        if (typingTimeoutRef) {
+            clearTimeout(typingTimeoutRef);
+        }
+        emitStopTyping(selectedUser._id);
 
         sendMessage({
             text: text.trim(),
@@ -72,8 +98,9 @@ function MessageInput() {
                     onChange={(e) => {
                         setText(e.target.value);
                         isSoundEnabled && playRandomKeyStrokeSound();
+                        handleTyping(); // Emit typing indicator
                     }}
-                    className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg py-2 px-4"
+                    className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg py-2 px-4 text-slate-200"
                     placeholder="Type your message..."
                 />
 

@@ -3,24 +3,35 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema({
     email: {
         type: String,
-        required: true, 
+        required: true,
         unique: true,
     },
-    fullName:{
-        type:String,
-        required:true,
+    fullName: {
+        type: String,
+        required: true,
     },
-    password:{
-        type:String,
-        required:true,
-        minlength:6,
+    password: {
+        type: String,
+        minlength: 6,
+        // Password is optional for Google OAuth users
     },
-    profilePic:{
-        type:String,
+    profilePic: {
+        type: String,
         default: "",
     },
-}, 
-{timestamps: true}
+    // Google OAuth specific fields
+    googleId: {
+        type: String,
+        unique: true,
+        sparse: true, // Allows null values while maintaining uniqueness for non-null
+    },
+    authProvider: {
+        type: String,
+        enum: ["local", "google"],
+        default: "local",
+    },
+},
+    { timestamps: true }
 ); // createdAt & updatedAt 
 
 
