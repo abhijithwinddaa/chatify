@@ -4,6 +4,7 @@ import LoginPage from "./pages/LoginPage"
 import SignUpPage from "./pages/SignUpPage"
 import LandingPage from "./pages/LandingPage"
 import AccountPage from "./pages/AccountPage"
+import JoinByLinkPage from "./pages/JoinByLinkPage"
 import { useAuthStore } from "./store/useAuthStore"
 import { useEffect } from "react"
 import PageLoader from "./components/PageLoader"
@@ -37,6 +38,7 @@ function App() {
         <Route path="/account" element={authUser ? <AccountPage /> : <Navigate to="/login" />} />
         <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to="/chat" />} />
         <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to="/chat" />} />
+        <Route path="/join/:inviteCode" element={<JoinByLinkPage />} />
       </Routes>
       <Toaster />
     </div>
