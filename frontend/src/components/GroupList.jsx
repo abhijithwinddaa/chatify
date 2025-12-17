@@ -4,6 +4,8 @@ import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { UsersIcon } from "lucide-react";
 import UsersLoadingSkeleton from "./UsersLoadingSkeleton";
+import EmptyState from "./ui/EmptyState";
+import UnreadBadge from "./ui/UnreadBadge";
 
 /**
  * GroupList Component
@@ -37,13 +39,11 @@ function GroupList() {
 
     if (groups.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                <UsersIcon className="w-16 h-16 text-slate-500 mb-4" />
-                <h3 className="text-slate-300 font-medium mb-2">No Groups Yet</h3>
-                <p className="text-slate-500 text-sm">
-                    Create a group to start chatting with multiple people at once.
-                </p>
-            </div>
+            <EmptyState
+                icon={UsersIcon}
+                title="No Groups Yet"
+                description="Create a group to start chatting with multiple people at once."
+            />
         );
     }
 
@@ -79,11 +79,15 @@ function GroupList() {
 
                     {/* Group Info */}
                     <div className="flex-1 text-left min-w-0">
-                        <h3 className="text-slate-200 font-medium truncate">
-                            {group.name}
-                        </h3>
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-slate-200 font-medium truncate">
+                                {group.name}
+                            </h3>
+                            {/* Unread count badge */}
+                            <UnreadBadge count={group.unreadCount} />
+                        </div>
                         <p className="text-slate-500 text-sm truncate">
-                            {group.members?.length || 0} members
+                            {group.lastMessage || `${group.members?.length || 0} members`}
                         </p>
                     </div>
                 </button>

@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useGroupStore } from "../store/useGroupStore";
 import { useChatStore } from "../store/useChatStore";
-import { XIcon, ImageIcon, Loader2Icon, UsersIcon, SearchIcon } from "lucide-react";
+import { XIcon, ImageIcon, Loader2Icon, UsersIcon, SearchIcon, GlobeIcon, LockIcon } from "lucide-react";
 
 /**
  * CreateGroupModal Component
@@ -18,17 +18,18 @@ function CreateGroupModal({ isOpen, onClose }) {
     const [groupPic, setGroupPic] = useState(null);
     const [selectedMembers, setSelectedMembers] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
+    const [isPublic, setIsPublic] = useState(false);
     const fileInputRef = useRef(null);
 
     const { createGroup, isCreatingGroup } = useGroupStore();
     const { allContacts, getAllContacts, isUsersLoading } = useChatStore();
 
     // Fetch contacts when modal opens
-    useState(() => {
+    useEffect(() => {
         if (isOpen && allContacts.length === 0) {
             getAllContacts();
         }
-    }, [isOpen]);
+    }, [isOpen, allContacts.length, getAllContacts]);
 
     const handleImageUpload = (e) => {
         const file = e.target.files[0];
@@ -60,6 +61,7 @@ function CreateGroupModal({ isOpen, onClose }) {
             description: description.trim(),
             groupPic,
             memberIds: selectedMembers,
+            isPublic,
         });
 
         if (result) {
@@ -68,6 +70,7 @@ function CreateGroupModal({ isOpen, onClose }) {
             setDescription("");
             setGroupPic(null);
             setSelectedMembers([]);
+            setIsPublic(false);
             onClose();
         }
     };
@@ -146,6 +149,41 @@ function CreateGroupModal({ isOpen, onClose }) {
                         />
                     </div>
 
+                    {/* Public/Private Toggle */}
+                    <div className="mb-4">
+                        <label className="block text-slate-400 text-sm mb-2">Group Visibility</label>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setIsPublic(false)}
+                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border transition-all ${!isPublic
+                                    ? "bg-slate-600 border-cyan-500 text-cyan-400"
+                                    : "bg-slate-700 border-slate-600 text-slate-400 hover:border-slate-500"
+                                    }`}
+                            >
+                                <LockIcon className="w-4 h-4" />
+                                <span>Private</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsPublic(true)}
+                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border transition-all ${isPublic
+                                    ? "bg-cyan-600/20 border-cyan-500 text-cyan-400"
+                                    : "bg-slate-700 border-slate-600 text-slate-400 hover:border-slate-500"
+                                    }`}
+                            >
+                                <GlobeIcon className="w-4 h-4" />
+                                <span>Public</span>
+                            </button>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2">
+                            {isPublic
+                                ? "Anyone can find and join this group"
+                                : "Only invited members can join this group"
+                            }
+                        </p>
+                    </div>
+
                     {/* Member Selection */}
                     <div className="mb-4">
                         <label className="block text-slate-400 text-sm mb-2">
@@ -187,8 +225,8 @@ function CreateGroupModal({ isOpen, onClose }) {
                                             {contact.fullName}
                                         </span>
                                         <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${selectedMembers.includes(contact._id)
-                                                ? "bg-cyan-500 border-cyan-500"
-                                                : "border-slate-500"
+                                            ? "bg-cyan-500 border-cyan-500"
+                                            : "border-slate-500"
                                             }`}>
                                             {selectedMembers.includes(contact._id) && (
                                                 <span className="text-white text-xs">✓</span>

@@ -2,7 +2,17 @@ import cloudinary from "../lib/cloudinary.js";
 import Group from "../models/Group.js";
 import Message from "../models/Message.js";
 import User from "../models/User.js";
+import Notification from "../models/Notification.js";
+import { createNotification } from "./notification.controller.js";
 import { io, getReceiverSocketId } from "../lib/socket.js";
+import crypto from "crypto";
+
+/**
+ * Generate a unique invite code
+ */
+const generateInviteCode = () => {
+    return crypto.randomBytes(8).toString("hex"); // 16 character code
+};
 
 /**
  * Create a new group
@@ -10,7 +20,7 @@ import { io, getReceiverSocketId } from "../lib/socket.js";
  */
 export const createGroup = async (req, res) => {
     try {
-        const { name, description, memberIds, groupPic } = req.body;
+        const { name, description, memberIds, groupPic, isPublic } = req.body;
         const adminId = req.user._id;
 
         if (!name || name.trim().length === 0) {
@@ -43,13 +53,19 @@ export const createGroup = async (req, res) => {
             uploadedPic = uploadResponse.secure_url;
         }
 
+        // Generate unique invite code
+        const inviteCode = generateInviteCode();
+
         const group = await Group.create({
             name: name.trim(),
             description: description?.trim() || "",
             groupPic: uploadedPic,
             admin: adminId,
             members: allMembers,
+            isPublic: Boolean(isPublic),
+            inviteCode,
         });
+
 
         // Populate and return the created group
         const populatedGroup = await Group.findById(group._id)
@@ -84,7 +100,33 @@ export const getMyGroups = async (req, res) => {
             .populate("members", "-password")
             .sort({ updatedAt: -1 });
 
-        res.status(200).json(groups);
+        // For each group, get last message and unread count
+        const groupsWithMetadata = await Promise.all(groups.map(async (group) => {
+            // Get last message in this group
+            const lastMessage = await Message.findOne({ groupId: group._id })
+                .sort({ createdAt: -1 })
+                .select("text image createdAt senderId");
+
+            // Count unread messages (messages not read by this user, excluding own messages)
+            const unreadCount = await Message.countDocuments({
+                groupId: group._id,
+                isGroupMessage: true,
+                senderId: { $ne: userId },
+                readBy: { $nin: [userId] }
+            });
+
+            return {
+                ...group.toObject(),
+                lastMessage: lastMessage?.text || (lastMessage?.image ? "📷 Image" : ""),
+                lastMessageAt: lastMessage?.createdAt || group.createdAt,
+                unreadCount
+            };
+        }));
+
+        // Sort by last message time (most recent first)
+        groupsWithMetadata.sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
+
+        res.status(200).json(groupsWithMetadata);
     } catch (error) {
         console.log("Error fetching groups:", error);
         res.status(500).json({ message: error.message });
@@ -382,7 +424,9 @@ export const getGroupMessages = async (req, res) => {
 
         const messages = await Message.find({
             groupId: id,
-            isGroupMessage: true
+            isGroupMessage: true,
+            // Filter out messages deleted by current user
+            deletedFor: { $ne: userId }
         })
             .populate("senderId", "-password")
             .sort({ createdAt: 1 });
@@ -458,6 +502,424 @@ export const sendGroupMessage = async (req, res) => {
         res.status(201).json(populatedMessage);
     } catch (error) {
         console.log("Error sending group message:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * Mark group messages as read
+ * POST /api/groups/:id/read
+ */
+export const markGroupMessagesAsRead = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user._id;
+
+        // Verify user is member of group
+        const group = await Group.findById(id);
+        if (!group) {
+            return res.status(404).json({ message: "Group not found" });
+        }
+        if (!group.members.some(m => m.toString() === userId.toString())) {
+            return res.status(403).json({ message: "Not a member of this group" });
+        }
+
+        // Add user to readBy for all unread messages (not sent by them)
+        const result = await Message.updateMany(
+            {
+                groupId: id,
+                isGroupMessage: true,
+                senderId: { $ne: userId },
+                readBy: { $nin: [userId] }
+            },
+            {
+                $addToSet: { readBy: userId }
+            }
+        );
+
+        res.status(200).json({
+            message: "Messages marked as read",
+            modifiedCount: result.modifiedCount
+        });
+    } catch (error) {
+        console.log("Error marking group messages as read:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * Get all public groups
+ * GET /api/groups/public
+ */
+export const getPublicGroups = async (req, res) => {
+    try {
+        const userId = req.user._id;
+
+        const groups = await Group.find({ isPublic: true })
+            .populate("admin", "fullName profilePic")
+            .sort({ createdAt: -1 });
+
+        // Add isMember flag for each group
+        const groupsWithMembership = groups.map(group => ({
+            ...group.toObject(),
+            isMember: group.members.some(m => m.toString() === userId.toString())
+        }));
+
+        res.status(200).json(groupsWithMembership);
+    } catch (error) {
+        console.log("Error fetching public groups:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * Join a public group directly
+ * POST /api/groups/:id/join
+ */
+export const joinPublicGroup = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user._id;
+
+        const group = await Group.findById(id);
+
+        if (!group) {
+            return res.status(404).json({ message: "Group not found" });
+        }
+
+        if (!group.isPublic) {
+            return res.status(403).json({ message: "This is a private group. You need an invite to join." });
+        }
+
+        // Check if already a member
+        if (group.members.some(m => m.toString() === userId.toString())) {
+            return res.status(400).json({ message: "You are already a member of this group" });
+        }
+
+        // Check member limit
+        if (group.members.length >= group.maxMembers) {
+            return res.status(400).json({ message: "Group is full" });
+        }
+
+        // Add user to group
+        group.members.push(userId);
+        await group.save();
+
+        const updatedGroup = await Group.findById(id)
+            .populate("admin", "-password")
+            .populate("members", "-password");
+
+        // Notify all members about new member
+        group.members.forEach(memberId => {
+            const socketId = getReceiverSocketId(memberId.toString());
+            if (socketId) {
+                io.to(socketId).emit("groupUpdated", updatedGroup);
+            }
+        });
+
+        // Create notification for admin about new member
+        const joiningUser = await User.findById(userId).select("fullName");
+        await createNotification({
+            userId: group.admin,
+            type: "group_join",
+            message: `${joiningUser.fullName} joined "${group.name}"`,
+            fromUser: userId,
+            groupId: id
+        });
+
+        res.status(200).json(updatedGroup);
+    } catch (error) {
+        console.log("Error joining group:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * Invite user to group (sends notification to user)
+ * POST /api/groups/:id/invite
+ */
+export const inviteToGroup = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId: inviteeId } = req.body;
+        const adminId = req.user._id;
+
+        const group = await Group.findById(id);
+
+        if (!group) {
+            return res.status(404).json({ message: "Group not found" });
+        }
+
+        // Only admin can invite
+        if (group.admin.toString() !== adminId.toString()) {
+            return res.status(403).json({ message: "Only admin can invite users" });
+        }
+
+        // Check if user exists
+        const invitee = await User.findById(inviteeId).select("fullName");
+        if (!invitee) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Check if already a member
+        if (group.members.some(m => m.toString() === inviteeId)) {
+            return res.status(400).json({ message: "User is already a member" });
+        }
+
+        // Check if invite already pending
+        const existingInvite = await Notification.findOne({
+            userId: inviteeId,
+            groupId: id,
+            type: "group_invite",
+            actionStatus: "pending"
+        });
+
+        if (existingInvite) {
+            return res.status(400).json({ message: "Invite already pending" });
+        }
+
+        // Create invite notification for the user
+        const admin = await User.findById(adminId).select("fullName");
+        await createNotification({
+            userId: inviteeId,
+            type: "group_invite",
+            message: `${admin.fullName} invited you to join "${group.name}"`,
+            fromUser: adminId,
+            groupId: id,
+            actionStatus: "pending"
+        });
+
+        res.status(200).json({ message: `Invite sent to ${invitee.fullName}` });
+    } catch (error) {
+        console.log("Error inviting to group:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * Accept group invite
+ * POST /api/groups/:id/accept-invite
+ */
+export const acceptInvite = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user._id;
+
+        // Find the pending invite notification
+        const invite = await Notification.findOne({
+            userId,
+            groupId: id,
+            type: "group_invite",
+            actionStatus: "pending"
+        });
+
+        if (!invite) {
+            return res.status(404).json({ message: "No pending invite found" });
+        }
+
+        const group = await Group.findById(id);
+
+        if (!group) {
+            return res.status(404).json({ message: "Group not found" });
+        }
+
+        // Check if already a member
+        if (group.members.some(m => m.toString() === userId.toString())) {
+            // Update invite status
+            invite.actionStatus = "accepted";
+            await invite.save();
+            return res.status(400).json({ message: "You are already a member" });
+        }
+
+        // Check member limit
+        if (group.members.length >= group.maxMembers) {
+            return res.status(400).json({ message: "Group is full" });
+        }
+
+        // Add user to group
+        group.members.push(userId);
+        await group.save();
+
+        // Update invite status
+        invite.actionStatus = "accepted";
+        invite.isRead = true;
+        await invite.save();
+
+        const updatedGroup = await Group.findById(id)
+            .populate("admin", "-password")
+            .populate("members", "-password");
+
+        // Notify user with the new group
+        const userSocketId = getReceiverSocketId(userId.toString());
+        if (userSocketId) {
+            io.to(userSocketId).emit("newGroup", updatedGroup);
+        }
+
+        // Notify all members about update
+        group.members.forEach(memberId => {
+            const socketId = getReceiverSocketId(memberId.toString());
+            if (socketId) {
+                io.to(socketId).emit("groupUpdated", updatedGroup);
+            }
+        });
+
+        // Notify admin that user accepted
+        const joiningUser = await User.findById(userId).select("fullName");
+        await createNotification({
+            userId: group.admin,
+            type: "group_join",
+            message: `${joiningUser.fullName} accepted your invite to "${group.name}"`,
+            fromUser: userId,
+            groupId: id
+        });
+
+        res.status(200).json(updatedGroup);
+    } catch (error) {
+        console.log("Error accepting invite:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * Decline group invite
+ * POST /api/groups/:id/decline-invite
+ */
+export const declineInvite = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user._id;
+
+        // Find the pending invite notification
+        const invite = await Notification.findOne({
+            userId,
+            groupId: id,
+            type: "group_invite",
+            actionStatus: "pending"
+        });
+
+        if (!invite) {
+            return res.status(404).json({ message: "No pending invite found" });
+        }
+
+        // Update invite status
+        invite.actionStatus = "declined";
+        invite.isRead = true;
+        await invite.save();
+
+        res.status(200).json({ message: "Invite declined" });
+    } catch (error) {
+        console.log("Error declining invite:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * Regenerate group invite code (admin only)
+ * POST /api/groups/:id/regenerate-invite
+ */
+export const regenerateInviteCode = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user._id;
+
+        const group = await Group.findById(id);
+        if (!group) {
+            return res.status(404).json({ message: "Group not found" });
+        }
+
+        // Only admin can regenerate invite code
+        if (group.admin.toString() !== userId.toString()) {
+            return res.status(403).json({ message: "Only admin can regenerate invite link" });
+        }
+
+        // Generate new code
+        const newCode = generateInviteCode();
+        group.inviteCode = newCode;
+        await group.save();
+
+        res.status(200).json({
+            message: "Invite link regenerated",
+            inviteCode: newCode
+        });
+    } catch (error) {
+        console.log("Error regenerating invite code:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * Get group info by invite code (for preview before joining)
+ * GET /api/groups/invite/:inviteCode
+ */
+export const getGroupByInviteCode = async (req, res) => {
+    try {
+        const { inviteCode } = req.params;
+        const userId = req.user._id;
+
+        const group = await Group.findOne({ inviteCode })
+            .populate("admin", "fullName profilePic")
+            .select("name description groupPic members isPublic admin");
+
+        if (!group) {
+            return res.status(404).json({ message: "Invalid or expired invite link" });
+        }
+
+        // Check if user is already a member
+        const isMember = group.members.some(m => m.toString() === userId.toString());
+
+        res.status(200).json({
+            ...group.toObject(),
+            memberCount: group.members.length,
+            isMember
+        });
+    } catch (error) {
+        console.log("Error getting group by invite code:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * Join group using invite code
+ * POST /api/groups/join/:inviteCode
+ */
+export const joinByInviteCode = async (req, res) => {
+    try {
+        const { inviteCode } = req.params;
+        const userId = req.user._id;
+
+        const group = await Group.findOne({ inviteCode });
+        if (!group) {
+            return res.status(404).json({ message: "Invalid or expired invite link" });
+        }
+
+        // Check if already a member
+        if (group.members.some(m => m.toString() === userId.toString())) {
+            return res.status(400).json({ message: "You are already a member of this group" });
+        }
+
+        // Check member limit
+        if (group.members.length >= group.maxMembers) {
+            return res.status(400).json({ message: "Group is full" });
+        }
+
+        // Add user to group
+        group.members.push(userId);
+        await group.save();
+
+        // Get populated group
+        const populatedGroup = await Group.findById(group._id)
+            .populate("admin", "-password")
+            .populate("members", "-password");
+
+        // Notify the new member
+        const socketId = getReceiverSocketId(userId.toString());
+        if (socketId) {
+            io.to(socketId).emit("newGroup", populatedGroup);
+        }
+
+        res.status(200).json(populatedGroup);
+    } catch (error) {
+        console.log("Error joining by invite code:", error);
         res.status(500).json({ message: error.message });
     }
 };

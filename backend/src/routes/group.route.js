@@ -10,6 +10,15 @@ import {
     deleteGroup,
     getGroupMessages,
     sendGroupMessage,
+    markGroupMessagesAsRead,
+    getPublicGroups,
+    joinPublicGroup,
+    inviteToGroup,
+    acceptInvite,
+    declineInvite,
+    regenerateInviteCode,
+    getGroupByInviteCode,
+    joinByInviteCode,
 } from "../controllers/group.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 import { arcjetProjection } from "../middleware/arcjet.middleware.js";
@@ -18,6 +27,13 @@ const router = express.Router();
 
 // Apply rate limiting and authentication to all group routes
 router.use(arcjetProjection, protectRoute);
+
+// Public groups route (must be before /:id to avoid conflict)
+router.get("/public", getPublicGroups);         // Get all public groups
+
+// Invite link routes (must be before /:id to avoid conflict)
+router.get("/invite/:inviteCode", getGroupByInviteCode);   // Get group preview by invite code
+router.post("/join-by-code/:inviteCode", joinByInviteCode); // Join group via invite code
 
 // Group CRUD routes
 router.post("/", createGroup);               // Create new group
@@ -31,8 +47,19 @@ router.post("/:id/members", addMembers);            // Add members (admin only)
 router.delete("/:id/members/:memberId", removeMember);  // Remove member (admin only)
 router.post("/:id/leave", leaveGroup);              // Leave group (for non-admin)
 
+// Public group join route
+router.post("/:id/join", joinPublicGroup);          // Join public group directly
+
+// Invite routes
+router.post("/:id/invite", inviteToGroup);          // Admin invites user
+router.post("/:id/accept-invite", acceptInvite);    // User accepts invite
+router.post("/:id/decline-invite", declineInvite);  // User declines invite
+router.post("/:id/regenerate-invite", regenerateInviteCode); // Regenerate invite code (admin)
+
 // Group messaging routes
 router.get("/:id/messages", getGroupMessages);      // Get group messages
 router.post("/:id/messages", sendGroupMessage);     // Send message to group
+router.post("/:id/read", markGroupMessagesAsRead);  // Mark group messages as read
 
 export default router;
+

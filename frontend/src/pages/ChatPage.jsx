@@ -6,23 +6,34 @@ import ActiveTabSwitch from '../components/ActiveTabSwitch';
 import ChatsList from '../components/ChatsList';
 import ContactList from '../components/ContactList';
 import GroupList from '../components/GroupList';
+import ExploreGroups from '../components/ExploreGroups';
+import NotificationTab from '../components/NotificationTab';
 import ChatContainer from '../components/ChatContainer';
 import GroupChatContainer from '../components/GroupChatContainer';
 import NoConversationPlaceholder from '../components/NoConversationPlaceholder';
 import ProfileHeader from '../components/ProfileHeader';
 import CreateGroupModal from '../components/CreateGroupModal';
+import { useNotificationStore } from '../store/useNotificationStore';
 import { PlusIcon } from 'lucide-react';
 
 function ChatPage() {
-    const { activeTab, selectedUser, setSelectedUser } = useChatStore();
+    const { activeTab, selectedUser, setSelectedUser, subscribeToGlobalMessages, unsubscribeFromGlobalMessages } = useChatStore();
     const { selectedGroup, setSelectedGroup, subscribeToGroups, unsubscribeFromGroups } = useGroupStore();
+    const { getUnreadCount, subscribeToNotifications, unsubscribeFromNotifications } = useNotificationStore();
     const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
 
-    // Subscribe to group events
+    // Subscribe to group events, global message events, and notifications
     useEffect(() => {
         subscribeToGroups();
-        return () => unsubscribeFromGroups();
-    }, [subscribeToGroups, unsubscribeFromGroups]);
+        subscribeToGlobalMessages();
+        subscribeToNotifications();
+        getUnreadCount(); // Fetch initial unread count for badge
+        return () => {
+            unsubscribeFromGroups();
+            unsubscribeFromGlobalMessages();
+            unsubscribeFromNotifications();
+        };
+    }, [subscribeToGroups, unsubscribeFromGroups, subscribeToGlobalMessages, unsubscribeFromGlobalMessages, subscribeToNotifications, unsubscribeFromNotifications, getUnreadCount]);
 
     // When selecting a group, deselect user and vice versa
     const handleGroupSelect = (group) => {
@@ -42,7 +53,7 @@ function ChatPage() {
     };
 
     return (
-        <div className='relative w-full max-w-6xl h-[800px]'>
+        <div className='relative w-full max-w-6xl h-[85vh] overflow-hidden'>
             <BorderAnimatedContainer>
                 {/* LEFT SIDE */}
                 <div className='w-80 bg-w-80 bg-slate-800/50 backdrop-blur-sm flex flex-col'>
@@ -67,6 +78,8 @@ function ChatPage() {
                                 <GroupList />
                             </>
                         )}
+                        {activeTab === "explore" && <ExploreGroups />}
+                        {activeTab === "notifications" && <NotificationTab />}
                     </div>
                 </div>
                 {/* RIGHT SIDE */}

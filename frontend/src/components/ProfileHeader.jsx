@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { SettingsIcon, VolumeOffIcon, Volume2Icon, LogOutIcon, UserIcon, MoreVerticalIcon } from "lucide-react";
+import { SettingsIcon, VolumeOffIcon, Volume2Icon, LogOutIcon, UserIcon, MoreVerticalIcon, BellIcon } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
+import { useNotificationStore } from "../store/useNotificationStore";
 import { useNavigate } from "react-router";
 
 const mouseClickSound = new Audio("/sounds/mouse-click.mp3");
 
 function ProfileHeader() {
     const { logout, authUser } = useAuthStore();
-    const { isSoundEnabled, toggleSound } = useChatStore();
+    const { isSoundEnabled, toggleSound, setActiveTab } = useChatStore();
+    const { unreadCount } = useNotificationStore();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef(null);
     const navigate = useNavigate();
@@ -60,7 +62,21 @@ function ProfileHeader() {
                 </div>
 
                 {/* RIGHT: ACTION BUTTONS */}
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-1 items-center">
+                    {/* NOTIFICATION BELL */}
+                    <button
+                        className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 rounded-lg transition-all relative"
+                        onClick={() => setActiveTab("notifications")}
+                        title="Notifications"
+                    >
+                        <BellIcon className="size-5" />
+                        {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                                {unreadCount > 9 ? "9+" : unreadCount}
+                            </span>
+                        )}
+                    </button>
+
                     {/* SOUND TOGGLE BTN */}
                     <button
                         className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 rounded-lg transition-all"

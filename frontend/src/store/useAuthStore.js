@@ -3,7 +3,7 @@ import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 
-const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:3000" : "/";
+const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:3001" : "/";
 
 export const useAuthStore = create((set, get) => ({
     authUser: null,
@@ -92,6 +92,17 @@ export const useAuthStore = create((set, get) => ({
 
         socket.on("getOnlineUsers", (userIds) => {
             set({ onlineUsers: userIds });
+        });
+
+        // Group typing listeners - import dynamically to avoid circular deps
+        socket.on("groupUserTyping", ({ groupId, userId, userName }) => {
+            const { useGroupStore } = require('./useGroupStore');
+            useGroupStore.getState().setGroupUserTyping(groupId, userId, userName);
+        });
+
+        socket.on("groupUserStopTyping", ({ groupId, userId }) => {
+            const { useGroupStore } = require('./useGroupStore');
+            useGroupStore.getState().setGroupUserStopTyping(groupId, userId);
         });
     },
 

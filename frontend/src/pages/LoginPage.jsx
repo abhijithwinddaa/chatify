@@ -13,12 +13,12 @@ function LoginPage() {
         login(formData);
     };
     return (
-        <div className="w-full flex items-center justify-center p-4 bg-slate-900">
-            <div className="relative w-full max-w-6xl md:h-[800px] h-[650px]">
+        <div className="w-full min-h-screen flex items-start md:items-center justify-center py-8 px-4 bg-slate-900 overflow-y-auto">
+            <div className="relative w-full max-w-6xl">
                 <BorderAnimatedContainer>
                     <div className="w-full flex flex-col md:flex-row">
-                        {/* FORM CLOUMN - LEFT SIDE */}
-                        <div className="md:w-1/2 p-8 flex items-center justify-center md:border-r border-slate-600/30">
+                        {/* FORM COLUMN - LEFT SIDE */}
+                        <div className="md:w-1/2 p-6 md:p-8 flex items-center justify-center md:border-r border-slate-600/30">
                             <div className="w-full max-w-md">
                                 {/* HEADING TEXT */}
                                 <div className="text-center mb-8">
@@ -80,7 +80,7 @@ function LoginPage() {
 
                                 {/* GOOGLE SIGN-IN BUTTON */}
                                 <a
-                                    href={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/auth/google`}
+                                    href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth/google`}
                                     className="w-full flex items-center justify-center gap-3 bg-white text-gray-700 border border-gray-300 rounded-lg py-3 px-4 font-medium hover:bg-gray-50 transition-colors"
                                 >
                                     <svg className="w-5 h-5" viewBox="0 0 24 24">

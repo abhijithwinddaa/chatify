@@ -7,6 +7,9 @@ import passport from "./lib/passport.js";
 import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
 import groupRoutes from "./routes/group.route.js";
+import notificationRoutes from "./routes/notification.route.js";
+import pollRoutes from "./routes/poll.route.js";
+import templateRoutes from "./routes/template.route.js";
 import { connectDB } from "./lib/db.js";
 import { ENV } from "./lib/env.js";
 import { app, server } from "./lib/socket.js";
@@ -15,7 +18,8 @@ const __dirname = path.resolve();
 
 const PORT = ENV.PORT || 3000;
 
-app.use(express.json({ limit: "5mb" })); // req.body
+app.use(express.json({ limit: "50mb" })); // Increased to 50MB for video messages
+app.use(express.urlencoded({ limit: "50mb", extended: true })); // For form data
 app.use(cors({ origin: ENV.CLIENT_URL, credentials: true }));
 app.use(cookieParser());
 app.use(passport.initialize()); // Initialize Passport for Google OAuth
@@ -23,6 +27,9 @@ app.use(passport.initialize()); // Initialize Passport for Google OAuth
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/groups", groupRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/polls", pollRoutes);
+app.use("/api/templates", templateRoutes);
 
 // make ready for deployment
 if (ENV.NODE_ENV === "production") {

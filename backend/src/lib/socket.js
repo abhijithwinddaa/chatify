@@ -50,6 +50,78 @@ io.on("connection", (socket) => {
         }
     });
 
+    // Group typing indicator: when user starts typing in a group
+    socket.on("groupTyping", ({ groupId, userName }) => {
+        // Broadcast to all connected users (they'll filter by groupId)
+        socket.broadcast.emit("groupUserTyping", {
+            groupId,
+            userId: socket.userId,
+            userName
+        });
+    });
+
+    // Group typing indicator: when user stops typing in a group
+    socket.on("groupStopTyping", ({ groupId }) => {
+        socket.broadcast.emit("groupUserStopTyping", {
+            groupId,
+            userId: socket.userId
+        });
+    });
+
+    // ========== WebRTC Calling Signaling ==========
+
+    // Initiate a call
+    socket.on("call-user", ({ to, offer, callType }) => {
+        const receiverSocketId = userSocketMap[to];
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("incoming-call", {
+                from: socket.userId,
+                callerName: socket.user.fullName,
+                callerPic: socket.user.profilePic,
+                offer,
+                callType // "audio" or "video"
+            });
+        } else {
+            // User offline
+            socket.emit("call-failed", { reason: "User is offline" });
+        }
+    });
+
+    // Call accepted - send answer back
+    socket.on("call-accepted", ({ to, answer }) => {
+        const callerSocketId = userSocketMap[to];
+        if (callerSocketId) {
+            io.to(callerSocketId).emit("call-answered", { answer });
+        }
+    });
+
+    // ICE candidate exchange
+    socket.on("ice-candidate", ({ to, candidate }) => {
+        const receiverSocketId = userSocketMap[to];
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("ice-candidate", {
+                from: socket.userId,
+                candidate
+            });
+        }
+    });
+
+    // End call
+    socket.on("end-call", ({ to }) => {
+        const receiverSocketId = userSocketMap[to];
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("call-ended", { from: socket.userId });
+        }
+    });
+
+    // Reject call
+    socket.on("call-rejected", ({ to }) => {
+        const callerSocketId = userSocketMap[to];
+        if (callerSocketId) {
+            io.to(callerSocketId).emit("call-rejected", { by: socket.userId });
+        }
+    });
+
     // with socket.on we listen for events from clients
     socket.on("disconnect", () => {
         console.log("A user disconnected", socket.user.fullName);
