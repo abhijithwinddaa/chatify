@@ -1,16 +1,67 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import BorderAnimatedContainer from "../components/BorderAnimatedContainer";
-import { MessageCircleIcon, LockIcon, MailIcon, UserIcon, LoaderIcon } from "lucide-react";
+import { MessageCircleIcon, LockIcon, MailIcon, UserIcon, LoaderIcon, CheckCircleIcon, XCircleIcon } from "lucide-react";
 import { Link } from "react-router";
+import { useDebounce } from "../hooks/useDebounce";
+import {
+    validateEmail,
+    validateFullName,
+    validatePassword,
+    getPasswordStrengthBg,
+    getPasswordStrengthWidth,
+    getPasswordStrengthColor
+} from "../lib/validators";
 
 function SignUpPage() {
     const [formData, setFormData] = useState({ fullName: "", email: "", password: "" });
     const { signup, isSigningUp } = useAuthStore();
 
+    // Validation error states
+    const [errors, setErrors] = useState({
+        fullName: "",
+        email: "",
+        password: ""
+    });
+    const [passwordStrength, setPasswordStrength] = useState("weak");
+
+    // Debounced values - validation only runs 300ms after typing stops
+    const debouncedName = useDebounce(formData.fullName, 300);
+    const debouncedEmail = useDebounce(formData.email, 300);
+    const debouncedPassword = useDebounce(formData.password, 300);
+
+    // Validate full name when debounced value changes
+    useEffect(() => {
+        const result = validateFullName(debouncedName);
+        setErrors(prev => ({ ...prev, fullName: result.error }));
+    }, [debouncedName]);
+
+    // Validate email when debounced value changes
+    useEffect(() => {
+        const result = validateEmail(debouncedEmail);
+        setErrors(prev => ({ ...prev, email: result.error }));
+    }, [debouncedEmail]);
+
+    // Validate password when debounced value changes
+    useEffect(() => {
+        const result = validatePassword(debouncedPassword);
+        setErrors(prev => ({ ...prev, password: result.error }));
+        setPasswordStrength(result.strength);
+    }, [debouncedPassword]);
+
+    // Check if form is valid for submission
+    const isFormValid = () => {
+        const nameResult = validateFullName(formData.fullName);
+        const emailResult = validateEmail(formData.email);
+        const passwordResult = validatePassword(formData.password);
+        return nameResult.isValid && emailResult.isValid && passwordResult.isValid;
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        signup(formData);
+        if (isFormValid()) {
+            signup(formData);
+        }
     };
 
     return (
@@ -35,15 +86,28 @@ function SignUpPage() {
                                         <label className="auth-input-label">Full Name</label>
                                         <div className="relative">
                                             <UserIcon className="auth-input-icon" />
-
                                             <input
                                                 type="text"
                                                 value={formData.fullName}
                                                 onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                                                className="input"
+                                                className={`input ${errors.fullName ? 'border-red-500 focus:ring-red-500' : formData.fullName && !errors.fullName ? 'border-green-500 focus:ring-green-500' : ''}`}
                                                 placeholder="Abhijith"
                                             />
+                                            {/* Validation indicator */}
+                                            {formData.fullName && (
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                    {errors.fullName ? (
+                                                        <XCircleIcon className="w-5 h-5 text-red-400" />
+                                                    ) : (
+                                                        <CheckCircleIcon className="w-5 h-5 text-green-400" />
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
+                                        {/* Error message */}
+                                        {errors.fullName && (
+                                            <p className="mt-1 text-sm text-red-400">{errors.fullName}</p>
+                                        )}
                                     </div>
 
                                     {/* EMAIL INPUT */}
@@ -51,15 +115,28 @@ function SignUpPage() {
                                         <label className="auth-input-label">Email</label>
                                         <div className="relative">
                                             <MailIcon className="auth-input-icon" />
-
                                             <input
                                                 type="email"
                                                 value={formData.email}
                                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                                className="input"
+                                                className={`input ${errors.email ? 'border-red-500 focus:ring-red-500' : formData.email && !errors.email ? 'border-green-500 focus:ring-green-500' : ''}`}
                                                 placeholder="abhijithwinddaa@gmail.com"
                                             />
+                                            {/* Validation indicator */}
+                                            {formData.email && (
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                    {errors.email ? (
+                                                        <XCircleIcon className="w-5 h-5 text-red-400" />
+                                                    ) : (
+                                                        <CheckCircleIcon className="w-5 h-5 text-green-400" />
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
+                                        {/* Error message */}
+                                        {errors.email && (
+                                            <p className="mt-1 text-sm text-red-400">{errors.email}</p>
+                                        )}
                                     </div>
 
                                     {/* PASSWORD INPUT */}
@@ -67,19 +144,45 @@ function SignUpPage() {
                                         <label className="auth-input-label">Password</label>
                                         <div className="relative">
                                             <LockIcon className="auth-input-icon" />
-
                                             <input
                                                 type="password"
                                                 value={formData.password}
                                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                                className="input"
+                                                className={`input ${errors.password && formData.password.length < 6 ? 'border-red-500 focus:ring-red-500' : ''}`}
                                                 placeholder="Enter your password"
                                             />
                                         </div>
+                                        {/* Password strength indicator */}
+                                        {formData.password && (
+                                            <div className="mt-2">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className="text-xs text-slate-400">Password strength:</span>
+                                                    <span className={`text-xs font-medium capitalize ${getPasswordStrengthColor(passwordStrength)}`}>
+                                                        {passwordStrength}
+                                                    </span>
+                                                </div>
+                                                <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full transition-all duration-300 rounded-full ${getPasswordStrengthBg(passwordStrength)}`}
+                                                        style={{ width: getPasswordStrengthWidth(passwordStrength) }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+                                        {/* Error/hint message */}
+                                        {errors.password && (
+                                            <p className={`mt-1 text-sm ${formData.password.length < 6 ? 'text-red-400' : 'text-yellow-400'}`}>
+                                                {errors.password}
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* SUBMIT BUTTON */}
-                                    <button className="auth-btn" type="submit" disabled={isSigningUp}>
+                                    <button
+                                        className="auth-btn disabled:opacity-50 disabled:cursor-not-allowed"
+                                        type="submit"
+                                        disabled={isSigningUp || !isFormValid()}
+                                    >
                                         {isSigningUp ? (
                                             <LoaderIcon className="w-full h-5 animate-spin text-center" />
                                         ) : (

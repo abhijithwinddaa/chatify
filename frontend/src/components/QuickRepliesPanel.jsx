@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { XIcon, PlusIcon, Trash2Icon, PencilIcon, MessageSquareIcon, SparklesIcon } from "lucide-react";
+import { XIcon, PlusIcon, Trash2Icon, PencilIcon, MessageSquareIcon, SparklesIcon, SearchIcon } from "lucide-react";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
+import { useDebounce } from "../hooks/useDebounce";
 
 /**
  * QuickRepliesPanel Component
@@ -22,6 +23,10 @@ function QuickRepliesPanel({ isOpen, onClose, onSelectTemplate }) {
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState("all");
+    const [searchQuery, setSearchQuery] = useState("");
+
+    // Debounce search query for better performance
+    const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -109,9 +114,15 @@ function QuickRepliesPanel({ isOpen, onClose, onSelectTemplate }) {
         setIsAdding(false);
     };
 
-    const filteredTemplates = selectedCategory === "all"
-        ? templates
-        : templates.filter(t => t.category === selectedCategory);
+    // Filter templates by category and debounced search
+    const filteredTemplates = templates.filter(t => {
+        const matchesCategory = selectedCategory === "all" || t.category === selectedCategory;
+        const matchesSearch = !debouncedSearchQuery ||
+            t.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+            t.text.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+            t.shortcut?.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
+        return matchesCategory && matchesSearch;
+    });
 
     if (!isOpen) return null;
 
@@ -129,13 +140,27 @@ function QuickRepliesPanel({ isOpen, onClose, onSelectTemplate }) {
                     </button>
                 </div>
 
+                {/* Search */}
+                <div className="p-3 border-b border-slate-700">
+                    <div className="relative">
+                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search templates..."
+                            className="w-full bg-slate-700/50 border border-slate-600 rounded-lg py-2 pl-10 pr-3 text-sm text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                        />
+                    </div>
+                </div>
+
                 {/* Category filter */}
                 <div className="flex gap-2 p-3 border-b border-slate-700 overflow-x-auto">
                     <button
                         onClick={() => setSelectedCategory("all")}
                         className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors ${selectedCategory === "all"
-                                ? "bg-cyan-500 text-white"
-                                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                            ? "bg-cyan-500 text-white"
+                            : "bg-slate-700 text-slate-300 hover:bg-slate-600"
                             }`}
                     >
                         All
@@ -145,8 +170,8 @@ function QuickRepliesPanel({ isOpen, onClose, onSelectTemplate }) {
                             key={cat.value}
                             onClick={() => setSelectedCategory(cat.value)}
                             className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors ${selectedCategory === cat.value
-                                    ? "bg-cyan-500 text-white"
-                                    : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                                ? "bg-cyan-500 text-white"
+                                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
                                 }`}
                         >
                             {cat.icon} {cat.label}

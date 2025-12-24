@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { CheckIcon, CheckCheckIcon } from "lucide-react";
 
 /**
@@ -7,6 +8,9 @@ import { CheckIcon, CheckCheckIcon } from "lucide-react";
  * - Single gray tick (✓) = Sent
  * - Double gray ticks (✓✓) = Delivered
  * - Double blue ticks (✓✓) = Read
+ * 
+ * ⚡ Optimizations:
+ * - React.memo: Only re-renders when status prop changes
  * 
  * @param {Object} props
  * @param {string} props.status - Message status: "sent" | "delivered" | "read"
@@ -37,4 +41,5 @@ function MessageStatus({ status }) {
     );
 }
 
-export default MessageStatus;
+// ⚡ React.memo: Only re-renders when status changes
+export default memo(MessageStatus);

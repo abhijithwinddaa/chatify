@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useGroupStore } from "../store/useGroupStore";
 import { SearchIcon, UsersIcon, GlobeIcon, Loader2Icon } from "lucide-react";
+import { useDebounce } from "../hooks/useDebounce";
 
 /**
  * ExploreGroups - Browse and join public groups
@@ -18,6 +19,9 @@ function ExploreGroups() {
     const [joiningGroupId, setJoiningGroupId] = useState(null);
 
     const { getPublicGroups, joinPublicGroup, setSelectedGroup } = useGroupStore();
+
+    // Debounce search query to reduce filtering overhead
+    const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
     // Fetch public groups on mount
     useEffect(() => {
@@ -44,10 +48,10 @@ function ExploreGroups() {
         setJoiningGroupId(null);
     };
 
-    // Filter groups based on search
+    // Filter groups based on debounced search
     const filteredGroups = publicGroups.filter(group =>
-        group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        group.description?.toLowerCase().includes(searchQuery.toLowerCase())
+        group.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        group.description?.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     );
 
     return (

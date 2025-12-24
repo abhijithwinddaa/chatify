@@ -144,6 +144,9 @@ const messageSchema = new mongoose.Schema(
         },
 
         // Scheduled messages
+        // TODO: Implement cron job or background worker to process scheduled messages
+        // When scheduledAt is set and isScheduled is true, message should be held
+        // and sent when current time >= scheduledAt
         scheduledAt: {
             type: Date, // When to send the message
         },
@@ -162,6 +165,10 @@ const messageSchema = new mongoose.Schema(
         },
 
         // Translation support
+        // TODO: Integrate translation API (Google Translate, DeepL, or LibreTranslate)
+        // - Detect originalLanguage using language detection API
+        // - Store translatedText when user requests translation
+        // - Add endpoint: POST /api/messages/:id/translate
         translatedText: {
             type: String, // Translated version of text
         },

@@ -25,14 +25,17 @@ import { arcjetProjection } from "../middleware/arcjet.middleware.js";
 
 const router = express.Router();
 
-// Apply rate limiting and authentication to all group routes
+// PUBLIC ROUTES (no auth required)
+// Invite link preview - allows anyone to see group info before logging in
+router.get("/invite/:inviteCode", arcjetProjection, getGroupByInviteCode);
+
+// PROTECTED ROUTES (auth required)
 router.use(arcjetProjection, protectRoute);
 
 // Public groups route (must be before /:id to avoid conflict)
 router.get("/public", getPublicGroups);         // Get all public groups
 
-// Invite link routes (must be before /:id to avoid conflict)
-router.get("/invite/:inviteCode", getGroupByInviteCode);   // Get group preview by invite code
+// Join by invite code (requires auth to actually join)
 router.post("/join-by-code/:inviteCode", joinByInviteCode); // Join group via invite code
 
 // Group CRUD routes

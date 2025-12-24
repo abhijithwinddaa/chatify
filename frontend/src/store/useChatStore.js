@@ -36,20 +36,57 @@ export const useChatStore = create((set, get) => ({
         set({ typingUsers: newTypingUsers });
     },
 
-    // Emit typing event to receiver
+    // Debounced typing state management
+    // Stores timeout IDs to manage debouncing per receiver
+    _typingTimeouts: {},
+
+    // Emit typing event with debouncing
+    // Strategy: Emit "typing" immediately on first keystroke, then debounce "stopTyping"
+    // This ensures the indicator appears immediately but doesn't flicker
     emitTyping: (receiverId) => {
         const socket = useAuthStore.getState().socket;
-        if (socket) {
-            socket.emit("typing", { receiverId });
+        if (!socket) return;
+
+        const timeouts = get()._typingTimeouts;
+
+        // Clear any existing stop-typing timeout
+        if (timeouts[receiverId]) {
+            clearTimeout(timeouts[receiverId]);
         }
+
+        // Only emit "typing" if we haven't recently
+        if (!timeouts[`${receiverId}_active`]) {
+            socket.emit("typing", { receiverId });
+            // Mark as active (prevent spam)
+            timeouts[`${receiverId}_active`] = true;
+        }
+
+        // Set a timeout to emit "stopTyping" after 1 second of no activity
+        timeouts[receiverId] = setTimeout(() => {
+            socket.emit("stopTyping", { receiverId });
+            delete timeouts[`${receiverId}_active`];
+            delete timeouts[receiverId];
+        }, 1000); // 1 second debounce for stop typing
+
+        set({ _typingTimeouts: timeouts });
     },
 
-    // Emit stop typing event to receiver
+    // Emit stop typing event (called when user clears input or sends message)
     emitStopTyping: (receiverId) => {
         const socket = useAuthStore.getState().socket;
-        if (socket) {
-            socket.emit("stopTyping", { receiverId });
+        if (!socket) return;
+
+        const timeouts = get()._typingTimeouts;
+
+        // Clear any pending timeout
+        if (timeouts[receiverId]) {
+            clearTimeout(timeouts[receiverId]);
+            delete timeouts[receiverId];
         }
+        delete timeouts[`${receiverId}_active`];
+
+        socket.emit("stopTyping", { receiverId });
+        set({ _typingTimeouts: timeouts });
     },
 
     getAllContacts: async () => {

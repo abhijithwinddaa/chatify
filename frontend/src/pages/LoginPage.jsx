@@ -1,17 +1,51 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '../store/useAuthStore';
 import BorderAnimatedContainer from "../components/BorderAnimatedContainer";
-import { MessageCircleIcon, LockIcon, MailIcon, LoaderIcon } from "lucide-react";
+import { MessageCircleIcon, LockIcon, MailIcon, LoaderIcon, CheckCircleIcon, XCircleIcon } from "lucide-react";
 import { Link } from "react-router";
+import { useDebounce } from "../hooks/useDebounce";
+import { validateEmail } from "../lib/validators";
 
 function LoginPage() {
     const [formData, setFormData] = useState({ email: "", password: "" });
     const { login, isLoggingIn } = useAuthStore();
 
+    // Validation error state
+    const [emailError, setEmailError] = useState("");
+
+    // Debounced email - validation only runs 300ms after typing stops
+    const debouncedEmail = useDebounce(formData.email, 300);
+
+    // Validate email when debounced value changes
+    useEffect(() => {
+        const result = validateEmail(debouncedEmail);
+        setEmailError(result.error);
+    }, [debouncedEmail]);
+
+    // ⚡ Preloading: Load ChatPage in background when user focuses on password
+    // This makes navigation instant after successful login
+    const [hasPreloaded, setHasPreloaded] = useState(false);
+    const handlePasswordFocus = useCallback(() => {
+        if (!hasPreloaded) {
+            // Dynamically import ChatPage in background
+            import("./ChatPage").then(() => {
+                console.log("⚡ ChatPage preloaded in background");
+            });
+            setHasPreloaded(true);
+        }
+    }, [hasPreloaded]);
+
+    // Check if form is ready for submission
+    const isFormValid = () => {
+        const emailResult = validateEmail(formData.email);
+        return emailResult.isValid && formData.password.length >= 1;
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
         login(formData);
     };
+
     return (
         <div className="w-full min-h-screen flex items-start md:items-center justify-center py-8 px-4 bg-slate-900 overflow-y-auto">
             <div className="relative w-full max-w-6xl">
@@ -34,15 +68,28 @@ function LoginPage() {
                                         <label className="auth-input-label">Email</label>
                                         <div className="relative">
                                             <MailIcon className="auth-input-icon" />
-
                                             <input
                                                 type="email"
                                                 value={formData.email}
                                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                                className="input"
+                                                className={`input ${emailError ? 'border-red-500 focus:ring-red-500' : formData.email && !emailError ? 'border-green-500 focus:ring-green-500' : ''}`}
                                                 placeholder="abhijithwinddaa@gmail.com"
                                             />
+                                            {/* Validation indicator */}
+                                            {formData.email && (
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                    {emailError ? (
+                                                        <XCircleIcon className="w-5 h-5 text-red-400" />
+                                                    ) : (
+                                                        <CheckCircleIcon className="w-5 h-5 text-green-400" />
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
+                                        {/* Error message */}
+                                        {emailError && (
+                                            <p className="mt-1 text-sm text-red-400">{emailError}</p>
+                                        )}
                                     </div>
 
                                     {/* PASSWORD INPUT */}
@@ -50,11 +97,11 @@ function LoginPage() {
                                         <label className="auth-input-label">Password</label>
                                         <div className="relative">
                                             <LockIcon className="auth-input-icon" />
-
                                             <input
                                                 type="password"
                                                 value={formData.password}
                                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                                onFocus={handlePasswordFocus}  // ⚡ Preload ChatPage
                                                 className="input"
                                                 placeholder="Enter your password"
                                             />
@@ -62,7 +109,11 @@ function LoginPage() {
                                     </div>
 
                                     {/* SUBMIT BUTTON */}
-                                    <button className="auth-btn" type="submit" disabled={isLoggingIn}>
+                                    <button
+                                        className="auth-btn disabled:opacity-50 disabled:cursor-not-allowed"
+                                        type="submit"
+                                        disabled={isLoggingIn || !isFormValid()}
+                                    >
                                         {isLoggingIn ? (
                                             <LoaderIcon className="w-full h-5 animate-spin text-center" />
                                         ) : (

@@ -4,7 +4,7 @@ import { useChatStore } from "../store/useChatStore";
 import toast from "react-hot-toast";
 import {
     ImageIcon, SendIcon, XIcon, SmileIcon, ReplyIcon, MicIcon,
-    VideoIcon, PaperclipIcon, MapPinIcon, ClockIcon, PlusIcon, ZapIcon, LanguagesIcon
+    VideoIcon, PaperclipIcon, MapPinIcon, ClockIcon, PlusIcon, ZapIcon, LanguagesIcon, Loader2Icon
 } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import VoiceRecorder from "./VoiceRecorder";
@@ -12,6 +12,9 @@ import VideoRecorder from "./VideoRecorder";
 import LocationPicker from "./LocationPicker";
 import FilePreview from "./FilePreview";
 import QuickRepliesPanel from "./QuickRepliesPanel";
+import { useDebounce } from "../hooks/useDebounce";
+import { axiosInstance } from "../lib/axios";
+import imageCompression from "browser-image-compression";  // ⚡ Image compression
 
 
 // Typing timeout reference (outside component to persist across renders)
@@ -39,6 +42,7 @@ function MessageInput() {
     const [disappearAfter, setDisappearAfter] = useState(null);
     const [fileAttachment, setFileAttachment] = useState(null);
     const [showQuickReplies, setShowQuickReplies] = useState(false);
+    const [isCompressing, setIsCompressing] = useState(false);  // ⚡ Compression state
 
     const fileInputRef = useRef(null);
     const documentInputRef = useRef(null);
@@ -47,6 +51,34 @@ function MessageInput() {
     const inputRef = useRef(null);
 
     const { sendMessage, isSoundEnabled, selectedUser, emitTyping, emitStopTyping, replyingTo, clearReplyingTo } = useChatStore();
+
+    // Debounce text for template shortcut detection
+    const debouncedText = useDebounce(text, 300);
+    const [templateSuggestion, setTemplateSuggestion] = useState(null);
+
+    // Detect template shortcut (e.g., /hello) and show suggestion
+    useEffect(() => {
+        const detectShortcut = async () => {
+            // Check if text starts with / and has at least 2 characters
+            if (debouncedText.startsWith("/") && debouncedText.length >= 2) {
+                const shortcut = debouncedText.trim();
+                try {
+                    const res = await axiosInstance.get("/templates");
+                    const template = res.data.find(t => t.shortcut?.toLowerCase() === shortcut.toLowerCase());
+                    if (template) {
+                        setTemplateSuggestion(template);
+                    } else {
+                        setTemplateSuggestion(null);
+                    }
+                } catch {
+                    setTemplateSuggestion(null);
+                }
+            } else {
+                setTemplateSuggestion(null);
+            }
+        };
+        detectShortcut();
+    }, [debouncedText]);
 
     // Close pickers when clicking outside
     useEffect(() => {
@@ -142,16 +174,46 @@ function MessageInput() {
         setShowLocationPicker(false);
     };
 
-    const handleImageChange = (e) => {
+    // ⚡ Image compression before upload - reduces file size by 50-90%
+    const handleImageChange = async (e) => {
         const file = e.target.files[0];
         if (!file?.type.startsWith("image/")) {
             toast.error("Please select an image file");
             return;
         }
-        const reader = new FileReader();
-        reader.onloadend = () => setImagePreview(reader.result);
-        reader.readAsDataURL(file);
+
+        setIsCompressing(true);
         setShowAttachMenu(false);
+
+        try {
+            // Compression options
+            const options = {
+                maxSizeMB: 0.5,           // Max 500KB
+                maxWidthOrHeight: 1920,   // Max dimensions
+                useWebWorker: true,       // Use Web Worker (non-blocking)
+                fileType: "image/jpeg",   // Convert to JPEG for better compression
+            };
+
+            const originalSize = file.size / 1024; // KB
+
+            // Only compress if file is larger than 500KB
+            let processedFile = file;
+            if (file.size > 500 * 1024) {
+                processedFile = await imageCompression(file, options);
+                const compressedSize = processedFile.size / 1024; // KB
+                console.log(`⚡ Image compressed: ${originalSize.toFixed(0)}KB → ${compressedSize.toFixed(0)}KB (${((1 - compressedSize / originalSize) * 100).toFixed(0)}% reduction)`);
+            }
+
+            // Convert to base64 for preview and upload
+            const reader = new FileReader();
+            reader.onloadend = () => setImagePreview(reader.result);
+            reader.readAsDataURL(processedFile);
+        } catch (error) {
+            console.error("Compression failed:", error);
+            toast.error("Failed to process image");
+        } finally {
+            setIsCompressing(false);
+        }
     };
 
     const handleDocumentChange = (e) => {
@@ -237,6 +299,39 @@ function MessageInput() {
                         <button onClick={clearReplyingTo} className="text-slate-400 hover:text-slate-200 transition-colors">
                             <XIcon className="w-4 h-4" />
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Template shortcut suggestion */}
+            {templateSuggestion && (
+                <div className="max-w-3xl mx-auto mb-3">
+                    <div className="bg-gradient-to-r from-cyan-600/20 to-cyan-500/10 rounded-lg p-3 border border-cyan-500/30">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <ZapIcon className="w-4 h-4 text-cyan-400" />
+                                <span className="text-xs text-cyan-400">Template found: <span className="font-medium">{templateSuggestion.name}</span></span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => {
+                                        setText(templateSuggestion.text);
+                                        setTemplateSuggestion(null);
+                                        inputRef.current?.focus();
+                                    }}
+                                    className="px-3 py-1 text-xs bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors"
+                                >
+                                    Use Template
+                                </button>
+                                <button
+                                    onClick={() => setTemplateSuggestion(null)}
+                                    className="text-slate-400 hover:text-slate-200"
+                                >
+                                    <XIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                        <p className="text-sm text-slate-300 mt-2 line-clamp-2">{templateSuggestion.text}</p>
                     </div>
                 </div>
             )}

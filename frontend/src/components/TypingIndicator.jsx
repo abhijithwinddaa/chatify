@@ -1,8 +1,13 @@
+import { memo } from "react";
+
 /**
  * TypingIndicator Component
  * 
  * Displays an animated "typing..." indicator with three bouncing dots.
  * Shown when the other user is typing a message.
+ * 
+ * ⚡ Optimizations:
+ * - React.memo: Component never changes, so memo prevents any re-renders
  */
 function TypingIndicator() {
     return (
@@ -28,4 +33,5 @@ function TypingIndicator() {
     );
 }
 
-export default TypingIndicator;
+// ⚡ React.memo: Pure component, never needs to re-render
+export default memo(TypingIndicator);

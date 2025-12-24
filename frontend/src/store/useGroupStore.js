@@ -46,21 +46,54 @@ export const useGroupStore = create((set, get) => ({
         });
     },
 
-    // Emit group typing event
+    // Debounced group typing state management
+    _groupTypingTimeouts: {},
+
+    // Emit group typing event with debouncing
+    // Strategy: Emit immediately on first keystroke, debounce stopTyping
     emitGroupTyping: (groupId) => {
         const socket = useAuthStore.getState().socket;
         const authUser = useAuthStore.getState().authUser;
-        if (socket && authUser) {
-            socket.emit("groupTyping", { groupId, userName: authUser.fullName });
+        if (!socket || !authUser) return;
+
+        const timeouts = get()._groupTypingTimeouts;
+
+        // Clear any existing stop-typing timeout
+        if (timeouts[groupId]) {
+            clearTimeout(timeouts[groupId]);
         }
+
+        // Only emit "typing" if we haven't recently
+        if (!timeouts[`${groupId}_active`]) {
+            socket.emit("groupTyping", { groupId, userName: authUser.fullName });
+            timeouts[`${groupId}_active`] = true;
+        }
+
+        // Set a timeout to emit "stopTyping" after 1 second of no activity
+        timeouts[groupId] = setTimeout(() => {
+            socket.emit("groupStopTyping", { groupId });
+            delete timeouts[`${groupId}_active`];
+            delete timeouts[groupId];
+        }, 1000);
+
+        set({ _groupTypingTimeouts: timeouts });
     },
 
     // Emit group stop typing event
     emitGroupStopTyping: (groupId) => {
         const socket = useAuthStore.getState().socket;
-        if (socket) {
-            socket.emit("groupStopTyping", { groupId });
+        if (!socket) return;
+
+        const timeouts = get()._groupTypingTimeouts;
+
+        if (timeouts[groupId]) {
+            clearTimeout(timeouts[groupId]);
+            delete timeouts[groupId];
         }
+        delete timeouts[`${groupId}_active`];
+
+        socket.emit("groupStopTyping", { groupId });
+        set({ _groupTypingTimeouts: timeouts });
     },
 
 
