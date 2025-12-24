@@ -850,11 +850,13 @@ export const regenerateInviteCode = async (req, res) => {
 /**
  * Get group info by invite code (for preview before joining)
  * GET /api/groups/invite/:inviteCode
+ * Note: This route does NOT require authentication so users can preview before logging in
  */
 export const getGroupByInviteCode = async (req, res) => {
     try {
         const { inviteCode } = req.params;
-        const userId = req.user._id;
+        // req.user may be undefined if user is not logged in
+        const userId = req.user?._id;
 
         const group = await Group.findOne({ inviteCode })
             .populate("admin", "fullName profilePic")
@@ -864,8 +866,10 @@ export const getGroupByInviteCode = async (req, res) => {
             return res.status(404).json({ message: "Invalid or expired invite link" });
         }
 
-        // Check if user is already a member
-        const isMember = group.members.some(m => m.toString() === userId.toString());
+        // Check if user is already a member (only if logged in)
+        const isMember = userId
+            ? group.members.some(m => m.toString() === userId.toString())
+            : false;
 
         res.status(200).json({
             ...group.toObject(),

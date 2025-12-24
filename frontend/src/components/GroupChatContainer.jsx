@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, memo, useCallback, useMemo } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useGroupStore } from "../store/useGroupStore";
 import { useChatStore } from "../store/useChatStore";
@@ -24,6 +24,11 @@ const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
  * - Group header with avatar and member count
  * - Message list with sender info
  * - Message input for sending group messages
+ * 
+ * ⚡ Optimizations:
+ * - React.memo: Prevents re-render when props haven't changed
+ * - useCallback: Memoizes handlers
+ * - loading="lazy": Images load only when visible
  */
 function GroupChatContainer() {
     const { selectedGroup, groupMessages, isLoadingMessages, getGroupMessages, sendGroupMessage, setSelectedGroup, markGroupMessagesAsRead, deleteGroupMessage, clearGroupChat, editGroupMessage, groupTypingUsers } = useGroupStore();
@@ -114,9 +119,10 @@ function GroupChatContainer() {
         setReplyingTo(null);
     };
 
-    const handleDeleteMessage = (messageId) => {
+    // ⚡ useCallback: Prevent recreation on every render
+    const handleDeleteMessage = useCallback((messageId) => {
         deleteGroupMessage(messageId);
-    };
+    }, [deleteGroupMessage]);
 
     const handleClearChat = async () => {
         await clearGroupChat(selectedGroup._id);
@@ -155,19 +161,19 @@ function GroupChatContainer() {
         }
     };
 
-    // Handle reaction
-    const handleReaction = (messageId, emoji) => {
+    // ⚡ useCallback: Prevent recreation on every render
+    const handleReaction = useCallback((messageId, emoji) => {
         addReaction(messageId, emoji);
         setShowReactionPicker(null);
-    };
+    }, [addReaction]);
 
     // Check if user starred a message
     const isStarred = (msg) => {
         return msg.starredBy?.includes(authUser._id);
     };
 
-    // Group reactions by emoji
-    const groupReactions = (reactions) => {
+    // ⚡ useCallback: Caches function
+    const groupReactions = useCallback((reactions) => {
         if (!reactions || reactions.length === 0) return [];
         const grouped = {};
         reactions.forEach(r => {
@@ -177,7 +183,7 @@ function GroupChatContainer() {
             grouped[r.emoji].push(r.userId);
         });
         return Object.entries(grouped).map(([emoji, users]) => ({ emoji, count: users.length, users }));
-    };
+    }, []);
 
     if (!selectedGroup) return null;
 
@@ -192,6 +198,7 @@ function GroupChatContainer() {
                                 src={selectedGroup.groupPic}
                                 alt={selectedGroup.name}
                                 className="size-full object-cover"
+                                loading="lazy"  // ⚡ Lazy loading
                             />
                         ) : (
                             <UsersIcon className="w-6 h-6 text-slate-400" />
@@ -283,6 +290,7 @@ function GroupChatContainer() {
                                                 <img
                                                     src={msg.senderId?.profilePic || "/avatar.png"}
                                                     alt={senderName}
+                                                    loading="lazy"  // ⚡ Lazy loading
                                                 />
                                             </div>
                                         </div>
@@ -409,6 +417,7 @@ function GroupChatContainer() {
                                                     src={msg.image}
                                                     alt="Shared"
                                                     className="rounded-lg h-48 object-cover mb-2"
+                                                    loading="lazy"  // ⚡ Lazy loading
                                                 />
                                             )}
 
@@ -486,6 +495,7 @@ function GroupChatContainer() {
                                                 <img
                                                     src={authUser?.profilePic || "/avatar.png"}
                                                     alt="You"
+                                                    loading="lazy"  // ⚡ Lazy loading
                                                 />
                                             </div>
                                         </div>
@@ -779,4 +789,5 @@ function GroupMessageInput({ onSend, replyingTo, onCancelReply, groupId }) {
     );
 }
 
-export default GroupChatContainer;
+// ⚡ React.memo: Prevents re-render if props haven't changed
+export default memo(GroupChatContainer);

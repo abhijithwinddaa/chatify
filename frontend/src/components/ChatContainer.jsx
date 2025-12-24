@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, memo, useMemo, useCallback } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 import ChatHeader from "./ChatHeader";
@@ -17,6 +17,16 @@ import EmojiPicker from "emoji-picker-react";
 
 // Quick reaction emojis
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+
+/**
+ * ChatContainer Component
+ * 
+ * ⚡ Optimizations:
+ * - React.memo: Prevents re-render when props haven't changed
+ * - useMemo: Caches grouped reactions calculation
+ * - useCallback: Prevents handler recreation
+ * - loading="lazy": Images load only when visible
+ */
 
 function ChatContainer() {
     const {
@@ -88,10 +98,10 @@ function ChatContainer() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Direct delete - no confirmation
-    const handleDeleteMessage = (messageId) => {
+    // ⚡ useCallback: Prevent recreation on every render
+    const handleDeleteMessage = useCallback((messageId) => {
         deleteMessage(messageId);
-    };
+    }, [deleteMessage]);
 
     // Start editing a message
     const handleStartEdit = (msg) => {
@@ -125,19 +135,19 @@ function ChatContainer() {
         }
     };
 
-    // Handle reaction
-    const handleReaction = (messageId, emoji) => {
+    // ⚡ useCallback: Prevent recreation on every render
+    const handleReaction = useCallback((messageId, emoji) => {
         addReaction(messageId, emoji);
         setShowReactionPicker(null);
-    };
+    }, [addReaction]);
 
     // Check if user starred a message
     const isStarred = (msg) => {
         return msg.starredBy?.includes(authUser._id);
     };
 
-    // Group reactions by emoji
-    const groupReactions = (reactions) => {
+    // ⚡ useMemo + useCallback: Caches calculation and prevents recreation
+    const groupReactions = useCallback((reactions) => {
         if (!reactions || reactions.length === 0) return [];
         const grouped = {};
         reactions.forEach(r => {
@@ -147,7 +157,7 @@ function ChatContainer() {
             grouped[r.emoji].push(r.userId);
         });
         return Object.entries(grouped).map(([emoji, users]) => ({ emoji, count: users.length, users }));
-    };
+    }, []);
 
     return (
         <>
@@ -278,7 +288,12 @@ function ChatContainer() {
                                             )}
 
                                             {msg.image && (
-                                                <img src={msg.image} alt="Shared" className="rounded-lg h-48 object-cover" />
+                                                <img
+                                                    src={msg.image}
+                                                    alt="Shared"
+                                                    className="rounded-lg h-48 object-cover"
+                                                    loading="lazy"  // ⚡ Lazy loading
+                                                />
                                             )}
 
                                             {/* Voice message */}
@@ -406,4 +421,5 @@ function ChatContainer() {
     );
 }
 
-export default ChatContainer;
+// ⚡ React.memo: Prevents re-render if props haven't changed
+export default memo(ChatContainer);

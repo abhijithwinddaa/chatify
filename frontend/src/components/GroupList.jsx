@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, memo, useCallback, useMemo } from "react";
 import { useGroupStore } from "../store/useGroupStore";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
@@ -12,6 +12,12 @@ import UnreadBadge from "./ui/UnreadBadge";
  * 
  * Displays a list of user's groups in the sidebar.
  * Clicking a group selects it for viewing messages.
+ * 
+ * ⚡ Optimizations:
+ * - React.memo: Only re-renders when groups/selectedGroup/onlineUsers change
+ * - useCallback: Prevents function recreation on every render
+ * - useMemo: Caches online member calculation
+ * - loading="lazy": Images load only when visible
  */
 function GroupList() {
     const { groups, isLoadingGroups, getMyGroups, setSelectedGroup, selectedGroup } = useGroupStore();
@@ -22,16 +28,20 @@ function GroupList() {
         getMyGroups();
     }, [getMyGroups]);
 
-    const handleSelectGroup = (group) => {
+    // ⚡ useCallback: Same function reference unless dependencies change
+    const handleSelectGroup = useCallback((group) => {
         // Deselect any individual user when selecting a group
         setSelectedUser(null);
         setSelectedGroup(group);
-    };
+    }, [setSelectedUser, setSelectedGroup]);
 
-    // Count online members in a group
-    const getOnlineMemberCount = (group) => {
-        return group.members?.filter(m => onlineUsers.includes(m._id)).length || 0;
-    };
+    // ⚡ useMemo: Only recalculate when groups or onlineUsers change
+    const groupsWithOnlineCount = useMemo(() => {
+        return groups.map(group => ({
+            ...group,
+            onlineCount: group.members?.filter(m => onlineUsers.includes(m._id)).length || 0
+        }));
+    }, [groups, onlineUsers]);
 
     if (isLoadingGroups) {
         return <UsersLoadingSkeleton />;
@@ -49,7 +59,7 @@ function GroupList() {
 
     return (
         <div className="overflow-y-auto flex-1">
-            {groups.map((group) => (
+            {groupsWithOnlineCount.map((group) => (
                 <button
                     key={group._id}
                     onClick={() => handleSelectGroup(group)}
@@ -64,6 +74,7 @@ function GroupList() {
                                     src={group.groupPic}
                                     alt={group.name}
                                     className="size-full object-cover"
+                                    loading="lazy"  // ⚡ Lazy loading
                                 />
                             ) : (
                                 <div className="size-full flex items-center justify-center">
@@ -72,7 +83,7 @@ function GroupList() {
                             )}
                         </div>
                         {/* Online indicator */}
-                        {getOnlineMemberCount(group) > 0 && (
+                        {group.onlineCount > 0 && (
                             <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-slate-900" />
                         )}
                     </div>
@@ -96,4 +107,5 @@ function GroupList() {
     );
 }
 
-export default GroupList;
+// ⚡ React.memo: Prevents re-render if props haven't changed
+export default memo(GroupList);

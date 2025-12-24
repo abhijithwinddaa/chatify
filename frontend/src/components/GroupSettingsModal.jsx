@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useGroupStore } from "../store/useGroupStore";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
+import { useDebounce } from "../hooks/useDebounce";
 import {
     XIcon,
     UsersIcon,
@@ -44,6 +45,9 @@ function GroupSettingsModal({ isOpen, onClose, group }) {
     const [selectedNewMembers, setSelectedNewMembers] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
 
+    // Debounce search query for better performance
+    const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
     // Confirm dialog states
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -67,11 +71,11 @@ function GroupSettingsModal({ isOpen, onClose, group }) {
     // Get member IDs for filtering
     const memberIds = group.members?.map(m => m._id || m) || [];
 
-    // Filter contacts that are not already members
+    // Filter contacts that are not already members using debounced search
     const availableContacts = allContacts.filter(
         contact => !memberIds.includes(contact._id)
     ).filter(
-        contact => contact.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
+        contact => contact.fullName?.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     );
 
     const handleSaveChanges = async () => {

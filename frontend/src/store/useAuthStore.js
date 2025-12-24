@@ -94,14 +94,14 @@ export const useAuthStore = create((set, get) => ({
             set({ onlineUsers: userIds });
         });
 
-        // Group typing listeners - import dynamically to avoid circular deps
-        socket.on("groupUserTyping", ({ groupId, userId, userName }) => {
-            const { useGroupStore } = require('./useGroupStore');
+        // Group typing listeners - using dynamic import to avoid circular deps
+        socket.on("groupUserTyping", async ({ groupId, userId, userName }) => {
+            const { useGroupStore } = await import('./useGroupStore.js');
             useGroupStore.getState().setGroupUserTyping(groupId, userId, userName);
         });
 
-        socket.on("groupUserStopTyping", ({ groupId, userId }) => {
-            const { useGroupStore } = require('./useGroupStore');
+        socket.on("groupUserStopTyping", async ({ groupId, userId }) => {
+            const { useGroupStore } = await import('./useGroupStore.js');
             useGroupStore.getState().setGroupUserStopTyping(groupId, userId);
         });
     },

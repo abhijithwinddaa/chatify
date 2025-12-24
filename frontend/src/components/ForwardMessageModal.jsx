@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { XIcon, ForwardIcon, SearchIcon, UsersIcon, UserIcon } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 import { useGroupStore } from "../store/useGroupStore";
+import { useDebounce } from "../hooks/useDebounce";
 
 /**
  * ForwardMessageModal
@@ -15,6 +16,9 @@ function ForwardMessageModal({ isOpen, onClose, message }) {
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState("contacts"); // "contacts" or "groups"
     const [isForwarding, setIsForwarding] = useState(false);
+
+    // Debounce search query for better performance
+    const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
     useEffect(() => {
         if (isOpen) {
@@ -36,14 +40,14 @@ function ForwardMessageModal({ isOpen, onClose, message }) {
 
     if (!isOpen || !message) return null;
 
-    // Filter contacts by search
+    // Filter contacts by debounced search
     const filteredContacts = allContacts.filter(contact =>
-        contact.fullName.toLowerCase().includes(searchQuery.toLowerCase())
+        contact.fullName.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     );
 
-    // Filter groups by search
+    // Filter groups by debounced search
     const filteredGroups = groups.filter(group =>
-        group.name.toLowerCase().includes(searchQuery.toLowerCase())
+        group.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     );
 
     const handleForward = async (receiverId, groupId) => {
@@ -106,8 +110,8 @@ function ForwardMessageModal({ isOpen, onClose, message }) {
                     <button
                         onClick={() => setActiveTab("contacts")}
                         className={`flex-1 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${activeTab === "contacts"
-                                ? "text-cyan-400 border-b-2 border-cyan-400"
-                                : "text-slate-400 hover:text-slate-200"
+                            ? "text-cyan-400 border-b-2 border-cyan-400"
+                            : "text-slate-400 hover:text-slate-200"
                             }`}
                     >
                         <UserIcon className="w-4 h-4" />
@@ -116,8 +120,8 @@ function ForwardMessageModal({ isOpen, onClose, message }) {
                     <button
                         onClick={() => setActiveTab("groups")}
                         className={`flex-1 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${activeTab === "groups"
-                                ? "text-cyan-400 border-b-2 border-cyan-400"
-                                : "text-slate-400 hover:text-slate-200"
+                            ? "text-cyan-400 border-b-2 border-cyan-400"
+                            : "text-slate-400 hover:text-slate-200"
                             }`}
                     >
                         <UsersIcon className="w-4 h-4" />

@@ -1,19 +1,22 @@
 import { useState, useRef, useEffect } from "react";
 import { useGroupStore } from "../store/useGroupStore";
 import { useChatStore } from "../store/useChatStore";
-import { XIcon, ImageIcon, Loader2Icon, UsersIcon, SearchIcon, GlobeIcon, LockIcon } from "lucide-react";
+import { XIcon, ImageIcon, Loader2Icon, UsersIcon, SearchIcon, GlobeIcon, LockIcon, CheckCircleIcon, XCircleIcon } from "lucide-react";
+import { useDebounce } from "../hooks/useDebounce";
+import { validateGroupName } from "../lib/validators";
 
 /**
  * CreateGroupModal Component
  * 
  * Modal dialog for creating a new group with:
- * - Group name input
+ * - Group name input with debounced validation
  * - Group picture upload
  * - Member selection from contacts
  * - Create button
  */
 function CreateGroupModal({ isOpen, onClose }) {
     const [groupName, setGroupName] = useState("");
+    const [groupNameError, setGroupNameError] = useState("");
     const [description, setDescription] = useState("");
     const [groupPic, setGroupPic] = useState(null);
     const [selectedMembers, setSelectedMembers] = useState([]);
@@ -23,6 +26,16 @@ function CreateGroupModal({ isOpen, onClose }) {
 
     const { createGroup, isCreatingGroup } = useGroupStore();
     const { allContacts, getAllContacts, isUsersLoading } = useChatStore();
+
+    // Debounced group name validation
+    const debouncedGroupName = useDebounce(groupName, 300);
+    // Debounced search query for contacts
+    const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+    useEffect(() => {
+        const result = validateGroupName(debouncedGroupName);
+        setGroupNameError(result.error);
+    }, [debouncedGroupName]);
 
     // Fetch contacts when modal opens
     useEffect(() => {
@@ -75,9 +88,9 @@ function CreateGroupModal({ isOpen, onClose }) {
         }
     };
 
-    // Filter contacts based on search
+    // Filter contacts based on debounced search
     const filteredContacts = allContacts.filter(contact =>
-        contact.fullName.toLowerCase().includes(searchQuery.toLowerCase())
+        contact.fullName.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     );
 
     if (!isOpen) return null;
@@ -105,7 +118,7 @@ function CreateGroupModal({ isOpen, onClose }) {
                         >
                             <div className="w-24 h-24 rounded-full overflow-hidden bg-slate-700 flex items-center justify-center">
                                 {groupPic ? (
-                                    <img src={groupPic} alt="Group" className="w-full h-full object-cover" />
+                                    <img src={groupPic} alt="Group" className="w-full h-full object-cover" loading="lazy" />
                                 ) : (
                                     <UsersIcon className="w-10 h-10 text-slate-400" />
                                 )}
@@ -126,14 +139,29 @@ function CreateGroupModal({ isOpen, onClose }) {
                     {/* Group Name */}
                     <div className="mb-4">
                         <label className="block text-slate-400 text-sm mb-2">Group Name *</label>
-                        <input
-                            type="text"
-                            value={groupName}
-                            onChange={(e) => setGroupName(e.target.value)}
-                            className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-slate-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                            placeholder="Enter group name"
-                            maxLength={100}
-                        />
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={groupName}
+                                onChange={(e) => setGroupName(e.target.value)}
+                                className={`w-full bg-slate-700 border rounded-lg py-2 px-3 pr-10 text-slate-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${groupNameError ? 'border-red-500' : groupName && !groupNameError ? 'border-green-500' : 'border-slate-600'
+                                    }`}
+                                placeholder="Enter group name"
+                                maxLength={100}
+                            />
+                            {groupName && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                    {groupNameError ? (
+                                        <XCircleIcon className="w-5 h-5 text-red-400" />
+                                    ) : (
+                                        <CheckCircleIcon className="w-5 h-5 text-green-400" />
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        {groupNameError && (
+                            <p className="mt-1 text-sm text-red-400">{groupNameError}</p>
+                        )}
                     </div>
 
                     {/* Description */}
