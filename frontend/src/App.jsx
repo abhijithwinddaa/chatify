@@ -19,6 +19,17 @@ function App() {
 
   useEffect(() => {
     checkAuth()
+
+    // Wake up AI service in background (Render free tier sleeps after 15min)
+    const AI_HEALTH_URL = import.meta.env.VITE_API_URL
+      ? `${import.meta.env.VITE_API_URL}/api/ai/health`
+      : null;
+
+    if (AI_HEALTH_URL) {
+      fetch(AI_HEALTH_URL, { method: 'GET' }).catch(() => {
+        // Silent fail - just waking up the service
+      });
+    }
   }, [checkAuth])
 
   if (isCheckingAuth) {
