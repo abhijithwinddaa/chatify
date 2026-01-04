@@ -13,11 +13,10 @@ import { ENV } from "../lib/env.js";
 
 const route = express.Router();
 
-route.use(arcjetProjection);
+// Apply arcjet only to specific routes (not Google OAuth)
+route.post("/signup", arcjetProjection, signup);
 
-route.post("/signup", signup);
-
-route.post("/login", login);
+route.post("/login", arcjetProjection, login);
 
 route.post("/logout", logout);
 
@@ -27,7 +26,7 @@ route.get("/check", protectRoute, (req, res) => {
   res.status(200).json(req.user);
 });
 
-// Google OAuth Routes
+// Google OAuth Routes (NO arcjet - it blocks OAuth redirects)
 // Initiates the Google OAuth flow
 route.get("/google", passport.authenticate("google", {
   scope: ["profile", "email"],
