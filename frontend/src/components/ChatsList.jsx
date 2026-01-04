@@ -5,6 +5,7 @@ import NoChatsFound from "./NoChatsFound";
 import { useAuthStore } from "../store/useAuthStore";
 import UserListItem from "./ui/UserListItem";
 import UnreadBadge from "./ui/UnreadBadge";
+import AIChatContact from "./AIChatContact";
 
 /**
  * ChatsList Component
@@ -27,10 +28,19 @@ function ChatsList() {
     }, [setSelectedUser]);
 
     if (isUsersLoading) return <UsersLoadingSkeleton />
-    if (chats.length === 0) return <NoChatsFound />
 
     return (
         <div className="px-2 py-2">
+            {/* Chatify AI - Always at top */}
+            <AIChatContact />
+
+            {/* Separator */}
+            {chats.length > 0 && (
+                <div className="border-b border-base-300/50 my-2" />
+            )}
+
+            {/* Regular chats */}
+            {chats.length === 0 && <NoChatsFound />}
             {chats.map(chat => {
                 const isOnline = onlineUsers.includes(chat._id);
                 return (
@@ -51,3 +61,4 @@ function ChatsList() {
 
 // ⚡ React.memo: Prevents re-render if props haven't changed
 export default memo(ChatsList);
+

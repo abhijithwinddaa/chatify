@@ -101,6 +101,19 @@ function MessageInput() {
         }
     }, [replyingTo]);
 
+    // Listen for AI suggested reply selections
+    useEffect(() => {
+        const handleSuggestedReply = (e) => {
+            setText(e.detail);
+            if (inputRef.current) {
+                inputRef.current.focus();
+            }
+        };
+        window.addEventListener('suggestedReply', handleSuggestedReply);
+        return () => window.removeEventListener('suggestedReply', handleSuggestedReply);
+    }, []);
+
+
     const handleTyping = () => {
         if (!selectedUser) return;
         emitTyping(selectedUser._id);
