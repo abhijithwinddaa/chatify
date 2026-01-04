@@ -10,17 +10,20 @@ import ExploreGroups from '../components/ExploreGroups';
 import NotificationTab from '../components/NotificationTab';
 import ChatContainer from '../components/ChatContainer';
 import GroupChatContainer from '../components/GroupChatContainer';
+import AIChatContainer from '../components/AIChatContainer';
 import NoConversationPlaceholder from '../components/NoConversationPlaceholder';
 import ProfileHeader from '../components/ProfileHeader';
 import CreateGroupModal from '../components/CreateGroupModal';
+import AIChatModal from '../components/AIChatModal';
 import { useNotificationStore } from '../store/useNotificationStore';
-import { PlusIcon } from 'lucide-react';
+import { PlusIcon, Sparkles } from 'lucide-react';
 
 function ChatPage() {
     const { activeTab, selectedUser, setSelectedUser, subscribeToGlobalMessages, unsubscribeFromGlobalMessages } = useChatStore();
     const { selectedGroup, setSelectedGroup, subscribeToGroups, unsubscribeFromGroups } = useGroupStore();
     const { getUnreadCount, subscribeToNotifications, unsubscribeFromNotifications } = useNotificationStore();
     const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+    const [showAIModal, setShowAIModal] = useState(false);
 
     // Subscribe to group events, global message events, and notifications
     useEffect(() => {
@@ -43,6 +46,10 @@ function ChatPage() {
 
     // Determine what to show in the main area
     const renderMainContent = () => {
+        // Check if AI contact is selected
+        if (selectedUser?.isAI || selectedUser?._id === "chatify-ai") {
+            return <AIChatContainer />;
+        }
         if (selectedUser) {
             return <ChatContainer />;
         }
@@ -88,13 +95,32 @@ function ChatPage() {
                 </div>
             </BorderAnimatedContainer>
 
+            {/* Floating AI Button */}
+            <button
+                onClick={() => setShowAIModal(true)}
+                className="fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-40 group"
+                title="Ask Chatify AI"
+            >
+                <Sparkles className="w-6 h-6 text-white group-hover:animate-pulse" />
+            </button>
+
             {/* Create Group Modal */}
             <CreateGroupModal
                 isOpen={showCreateGroupModal}
                 onClose={() => setShowCreateGroupModal(false)}
+            />
+
+            {/* AI Chat Modal */}
+            <AIChatModal
+                isOpen={showAIModal}
+                onClose={() => setShowAIModal(false)}
+                conversationType={selectedUser ? "private" : selectedGroup ? "group" : null}
+                targetId={selectedUser?._id || selectedGroup?._id || null}
+                targetName={selectedUser?.fullName || selectedGroup?.name || null}
             />
         </div>
     )
 }
 
 export default ChatPage
+

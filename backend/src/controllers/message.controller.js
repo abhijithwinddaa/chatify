@@ -3,6 +3,36 @@ import Message from "../models/Message.js";
 import User from "../models/User.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
 
+// Chatify-AI service URL
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:3003";
+
+/**
+ * Index message to Chatify-AI for RAG search (non-blocking)
+ */
+async function indexMessageToAI(message, conversationType = "private") {
+    try {
+        // Only index text messages (skip images/audio only)
+        if (!message.text || message.text.trim().length === 0) return;
+
+        await fetch(`${AI_SERVICE_URL}/api/ai/index-message`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                messageId: message._id.toString(),
+                text: message.text,
+                senderId: message.senderId.toString(),
+                receiverId: message.receiverId?.toString() || null,
+                groupId: message.groupId?.toString() || null,
+                conversationType,
+                timestamp: message.createdAt
+            })
+        });
+        console.log("✅ Message indexed to AI:", message._id);
+    } catch (error) {
+        // Don't fail message sending if AI service is down
+        console.log("⚠️ AI indexing skipped:", error.message);
+    }
+}
 
 export const getAllContacts = async (req, res) => {
     try {
@@ -143,6 +173,9 @@ export const sendMessage = async (req, res) => {
         // Populate replyTo for the response
         const populatedMessage = await Message.findById(newMessage._id)
             .populate("replyTo", "text image senderId");
+
+        // Index to Chatify-AI for RAG (non-blocking)
+        indexMessageToAI(populatedMessage, "private");
 
         // For scheduled messages, don't send in real-time
         if (!isScheduled) {

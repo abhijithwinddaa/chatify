@@ -12,6 +12,7 @@ import AudioPlayer from "./AudioPlayer";
 import VideoPlayer from "./VideoPlayer";
 import FilePreview from "./FilePreview";
 import LocationPreview from "./LocationPreview";
+import SuggestedReplies from "./SuggestedReplies";
 import { Trash2Icon, PencilIcon, CheckIcon, XIcon, SmileIcon, PinIcon, StarIcon, ForwardIcon, ReplyIcon, ClockIcon } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 
@@ -408,6 +409,15 @@ function ChatContainer() {
                     <NoChatHistoryPlaceholder name={selectedUser.fullName} />
                 )}
             </div>
+
+            {/* AI Suggested Replies */}
+            <SuggestedReplies
+                messages={messages}
+                onSelect={(suggestion) => {
+                    // Dispatch a custom event that MessageInput can listen to
+                    window.dispatchEvent(new CustomEvent('suggestedReply', { detail: suggestion }));
+                }}
+            />
 
             <MessageInput />
 

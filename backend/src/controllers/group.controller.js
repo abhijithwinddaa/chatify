@@ -7,6 +7,35 @@ import { createNotification } from "./notification.controller.js";
 import { io, getReceiverSocketId } from "../lib/socket.js";
 import crypto from "crypto";
 
+// Chatify-AI service URL
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:3003";
+
+/**
+ * Index message to Chatify-AI for RAG search (non-blocking)
+ */
+async function indexMessageToAI(message, conversationType = "group") {
+    try {
+        if (!message.text || message.text.trim().length === 0) return;
+
+        await fetch(`${AI_SERVICE_URL}/api/ai/index-message`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                messageId: message._id.toString(),
+                text: message.text,
+                senderId: message.senderId?._id?.toString() || message.senderId?.toString(),
+                receiverId: null,
+                groupId: message.groupId?.toString() || null,
+                conversationType,
+                timestamp: message.createdAt
+            })
+        });
+        console.log("✅ Group message indexed to AI:", message._id);
+    } catch (error) {
+        console.log("⚠️ AI indexing skipped:", error.message);
+    }
+}
+
 /**
  * Generate a unique invite code
  */
@@ -481,6 +510,9 @@ export const sendGroupMessage = async (req, res) => {
 
         const populatedMessage = await Message.findById(newMessage._id)
             .populate("senderId", "-password");
+
+        // Index to Chatify-AI for RAG (non-blocking)
+        indexMessageToAI(populatedMessage, "group");
 
         // Send message to all group members via Socket.IO
         group.members.forEach(memberId => {

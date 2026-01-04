@@ -10,6 +10,7 @@ import groupRoutes from "./routes/group.route.js";
 import notificationRoutes from "./routes/notification.route.js";
 import pollRoutes from "./routes/poll.route.js";
 import templateRoutes from "./routes/template.route.js";
+import aiRoutes from "./routes/ai.route.js";
 import { connectDB } from "./lib/db.js";
 import { ENV } from "./lib/env.js";
 import { app, server } from "./lib/socket.js";
@@ -30,6 +31,7 @@ app.use("/api/groups", groupRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/polls", pollRoutes);
 app.use("/api/templates", templateRoutes);
+app.use("/api/ai", aiRoutes);
 
 // make ready for deployment
 if (ENV.NODE_ENV === "production") {
