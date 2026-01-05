@@ -47,12 +47,9 @@ const AIChatContact = ({ onSelect }) => {
             {/* Info */}
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-base-content">Chatify AI</h3>
-                    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-primary/20 text-primary rounded">
-                        AI
-                    </span>
+                    <h3 className="font-semibold text-slate-200">Chatify AI</h3>
                 </div>
-                <p className="text-sm text-base-content/60 truncate">
+                <p className="text-sm text-slate-400 truncate">
                     Ask me about your chats
                 </p>
             </div>
