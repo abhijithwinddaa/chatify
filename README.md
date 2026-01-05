@@ -4,6 +4,8 @@ A modern real-time chat application with AI-powered features, built with **React
 
 ![Chatify](frontend/public/chatify-icon.png)
 
+🌐 **Live Demo:** [chatify.abhijithwinddaa.tech](https://chatify.abhijithwinddaa.tech)
+
 ## ✨ Features
 
 ### Core Messaging
