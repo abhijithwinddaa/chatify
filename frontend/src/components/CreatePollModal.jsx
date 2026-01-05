@@ -1,18 +1,21 @@
 import { useState } from "react";
 import { XIcon, PlusIcon, Trash2Icon, BarChart3Icon, ClockIcon } from "lucide-react";
+import { axiosInstance } from "../lib/axios";
+import toast from "react-hot-toast";
 
 /**
  * CreatePollModal Component
  * 
  * Modal for creating a new poll in a group chat
  */
-function CreatePollModal({ isOpen, onClose, onSubmit, isLoading }) {
+function CreatePollModal({ isOpen, onClose, groupId, onSuccess }) {
     const [question, setQuestion] = useState("");
     const [options, setOptions] = useState(["", ""]);
     const [allowMultiple, setAllowMultiple] = useState(false);
     const [isAnonymous, setIsAnonymous] = useState(false);
     const [hasTimeLimit, setHasTimeLimit] = useState(false);
     const [timeLimit, setTimeLimit] = useState(24); // hours
+    const [isLoading, setIsLoading] = useState(false);
 
     const addOption = () => {
         if (options.length < 10) {
@@ -32,7 +35,7 @@ function CreatePollModal({ isOpen, onClose, onSubmit, isLoading }) {
         setOptions(newOptions);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         // Validate
@@ -48,7 +51,18 @@ function CreatePollModal({ isOpen, onClose, onSubmit, isLoading }) {
             endsAt: hasTimeLimit ? new Date(Date.now() + timeLimit * 60 * 60 * 1000) : null,
         };
 
-        onSubmit(pollData);
+        setIsLoading(true);
+        try {
+            await axiosInstance.post(`/polls/group/${groupId}`, pollData);
+            toast.success("Poll created successfully!");
+            resetForm();
+            onClose();
+            if (onSuccess) onSuccess();
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to create poll");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const resetForm = () => {
