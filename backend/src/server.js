@@ -1,6 +1,5 @@
 import express from "express";
 import cookieParser from "cookie-parser";
-import path from "path";
 import cors from "cors";
 import passport from "./lib/passport.js";
 
@@ -14,8 +13,6 @@ import aiRoutes from "./routes/ai.route.js";
 import { connectDB } from "./lib/db.js";
 import { ENV } from "./lib/env.js";
 import { app, server } from "./lib/socket.js";
-
-const __dirname = path.resolve();
 
 const PORT = ENV.PORT || 3000;
 
@@ -50,14 +47,8 @@ app.use("/api/polls", pollRoutes);
 app.use("/api/templates", templateRoutes);
 app.use("/api/ai", aiRoutes);
 
-// make ready for deployment
-if (ENV.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../frontend/dist")));
-
-  app.get("*", (_, res) => {
-    res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
-  });
-}
+// Note: Frontend is deployed separately on Vercel
+// This backend only serves the API
 
 server.listen(PORT, () => {
   console.log("Server running on port: " + PORT);
