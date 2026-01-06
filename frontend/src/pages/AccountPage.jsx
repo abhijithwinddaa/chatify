@@ -1,15 +1,16 @@
 import { useState, useRef } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { ArrowLeftIcon, CameraIcon, Loader2Icon, MailIcon, CalendarIcon, UserIcon, LogOutIcon, Trash2Icon } from "lucide-react";
+import { ArrowLeftIcon, CameraIcon, Loader2Icon, MailIcon, CalendarIcon, UserIcon, LogOutIcon, Trash2Icon, AlertTriangleIcon } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import BorderAnimatedContainer from "../components/BorderAnimatedContainer";
 import toast from "react-hot-toast";
 
 function AccountPage() {
-    const { authUser, updateProfile, isUpdatingProfile, logout } = useAuthStore();
+    const { authUser, updateProfile, isUpdatingProfile, logout, deleteAccount, isDeletingAccount } = useAuthStore();
     const [isEditing, setIsEditing] = useState(false);
     const [fullName, setFullName] = useState(authUser?.fullName || "");
     const [selectedImg, setSelectedImg] = useState(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const fileInputRef = useRef(null);
     const navigate = useNavigate();
 
@@ -50,6 +51,14 @@ function AccountPage() {
     const handleLogout = async () => {
         await logout();
         navigate("/");
+    };
+
+    const handleDeleteAccount = async () => {
+        const success = await deleteAccount();
+        if (success) {
+            navigate("/");
+        }
+        setShowDeleteConfirm(false);
     };
 
     const formatDate = (dateString) => {
@@ -171,7 +180,7 @@ function AccountPage() {
 
                         <button
                             className="w-full flex items-center justify-center gap-2 bg-red-500/10 text-red-400 py-3 rounded-xl hover:bg-red-500/20 transition-colors"
-                            onClick={() => toast.error("Delete account feature coming soon!")}
+                            onClick={() => setShowDeleteConfirm(true)}
                         >
                             <Trash2Icon className="w-5 h-5" />
                             Delete Account
@@ -179,6 +188,62 @@ function AccountPage() {
                     </div>
                 </div>
             </BorderAnimatedContainer>
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-800 rounded-2xl p-6 max-w-md w-full border border-slate-700 shadow-2xl">
+                        <div className="flex items-center gap-3 text-red-400 mb-4">
+                            <AlertTriangleIcon className="w-8 h-8" />
+                            <h2 className="text-xl font-bold">Delete Account</h2>
+                        </div>
+
+                        <p className="text-slate-300 mb-4">
+                            Are you sure you want to delete your account? This action is <span className="text-red-400 font-semibold">permanent</span> and cannot be undone.
+                        </p>
+
+                        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-6">
+                            <p className="text-red-400 text-sm">
+                                <strong>This will permanently delete:</strong>
+                            </p>
+                            <ul className="text-red-400/80 text-sm mt-2 list-disc list-inside">
+                                <li>Your profile and account data</li>
+                                <li>All your direct messages</li>
+                                <li>Your group memberships</li>
+                                <li>Polls you created</li>
+                                <li>All your notifications</li>
+                            </ul>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowDeleteConfirm(false)}
+                                disabled={isDeletingAccount}
+                                className="flex-1 py-3 rounded-xl bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDeleteAccount}
+                                disabled={isDeletingAccount}
+                                className="flex-1 py-3 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {isDeletingAccount ? (
+                                    <>
+                                        <Loader2Icon className="w-5 h-5 animate-spin" />
+                                        Deleting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trash2Icon className="w-5 h-5" />
+                                        Delete Forever
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

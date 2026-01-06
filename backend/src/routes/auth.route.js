@@ -4,6 +4,7 @@ import {
   login,
   logout,
   updateProfile,
+  deleteAccount,
 } from "../controllers/auth.controllers.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 import { arcjetProjection } from "../middleware/arcjet.middleware.js";
@@ -25,6 +26,9 @@ route.put("/update-profile", protectRoute, updateProfile);
 route.get("/check", protectRoute, (req, res) => {
   res.status(200).json(req.user);
 });
+
+// Delete account route - requires authentication
+route.delete("/delete-account", protectRoute, deleteAccount);
 
 // Google OAuth Routes (NO arcjet - it blocks OAuth redirects)
 // Initiates the Google OAuth flow
