@@ -2,6 +2,7 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/User.js";
 import { ENV } from "./env.js";
+import { sendWelcomeEmail } from "../emails/emailHandlers.js";
 
 /**
  * Passport.js Configuration for Google OAuth 2.0
@@ -58,6 +59,14 @@ passport.use(
                     profilePic,
                     authProvider: "google",
                 });
+
+                // Send welcome email for new Google users (non-blocking)
+                try {
+                    await sendWelcomeEmail(newUser.email, newUser.fullName, ENV.CLIENT_URL);
+                    console.log("✅ Welcome email sent to Google user:", newUser.email);
+                } catch (emailError) {
+                    console.log("⚠️ Failed to send welcome email for Google user:", emailError.message);
+                }
 
                 return done(null, newUser);
             } catch (error) {
