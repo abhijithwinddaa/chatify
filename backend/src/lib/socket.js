@@ -7,9 +7,16 @@ import { socketAuthMiddleware } from "../middleware/socket.auth.middleware.js";
 const app = express();
 const server = http.createServer(app);
 
+// Allow same origins as Express CORS
+const allowedOrigins = [
+    ENV.CLIENT_URL,
+    'https://chatify-rouge.vercel.app',
+    'https://chatify.abhijithwinddaa.tech'
+].filter(Boolean);
+
 const io = new Server(server, {
     cors: {
-        origin: [ENV.CLIENT_URL],
+        origin: allowedOrigins,
         credentials: true,
     },
 });

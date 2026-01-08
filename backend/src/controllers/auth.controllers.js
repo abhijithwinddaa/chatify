@@ -114,8 +114,9 @@ export const login = async (req, res) => {
 export const logout = (_, res) => {
     res.cookie("jwt", "", {
         maxAge: 0,
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-        secure: process.env.NODE_ENV !== "development"
+        httpOnly: true,
+        sameSite: ENV.NODE_ENV === "production" ? "none" : "strict",
+        secure: ENV.NODE_ENV !== "development"
     })
     res.status(200).json({ message: "Logged out successfully" })
 }
@@ -234,8 +235,9 @@ export const deleteAccount = async (req, res) => {
         // 11. Clear the JWT cookie (log them out)
         res.cookie("jwt", "", {
             maxAge: 0,
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-            secure: process.env.NODE_ENV !== "development"
+            httpOnly: true,
+            sameSite: ENV.NODE_ENV === "production" ? "none" : "strict",
+            secure: ENV.NODE_ENV !== "development"
         });
 
         console.log(`✅ Account deletion complete for: ${userEmail}`);

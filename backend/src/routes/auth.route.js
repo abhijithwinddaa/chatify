@@ -32,7 +32,12 @@ route.delete("/delete-account", protectRoute, deleteAccount);
 
 // Google OAuth Routes (NO arcjet - it blocks OAuth redirects)
 // Initiates the Google OAuth flow
-route.get("/google", passport.authenticate("google", {
+route.get("/google", (req, res, next) => {
+  // Store the referer/origin to redirect back to correct domain
+  const origin = req.headers.referer || req.headers.origin || ENV.CLIENT_URL;
+  req.session = { returnTo: origin };
+  next();
+}, passport.authenticate("google", {
   scope: ["profile", "email"],
   session: false
 }));
@@ -47,7 +52,7 @@ route.get("/google/callback",
     // Generate JWT and set as cookie
     generateToken(req.user._id, res);
 
-    // Redirect to frontend chat page
+    // Redirect to frontend chat page (use primary CLIENT_URL for consistency)
     res.redirect(`${ENV.CLIENT_URL}/chat`);
   }
 );
