@@ -13,7 +13,7 @@ Bio: Abhijith Batturaj is a Full-Stack Software Engineer who builds scalable, pr
 
 Contact & Social Links:
 - Email: abhijithyadav786@gmail.com
-- LinkedIn: https://www.linkedin.com/in/abhijithwinddaa
+- LinkedIn: https://www.linkedin.com/in/batturaj-abhijith
 - GitHub: https://github.com/abhijithwinddaa
 - Portfolio: https://abhijithwinddaa.tech
 
